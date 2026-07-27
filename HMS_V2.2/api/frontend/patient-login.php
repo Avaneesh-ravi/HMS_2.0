@@ -30,12 +30,20 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             if (!$isValid) {
                 $error = 'Invalid password.';
             } else {
-                // Log them in as admin and redirect to dashboard
+                // Log them in and redirect to feedback form as requested for the kiosk unlock scenario
                 $_SESSION['admin_id'] = $adminUser['hospital_admin_id'];
                 $_SESSION['admin_username'] = $adminUser['username'];
                 $_SESSION['hospital_id'] = $adminUser['hospital_id'];
                 $_SESSION['role'] = $adminUser['role'];
-                redirect('../backend/admin/dashboard.php');
+                
+                // Set cookies for Vercel stateless session persistence
+                $token = md5($adminUser['hospital_admin_id'] . $adminUser['password_hash'] . 'secret_key_123');
+                setcookie('hms_admin_auth', $adminUser['hospital_admin_id'], time() + 86400, '/');
+                setcookie('hms_admin_token', $token, time() + 86400, '/');
+                setcookie('hms_hospital_id', $adminUser['hospital_id'], time() + 86400, '/');
+
+                // Correctly forward to the patient feedback portal
+                redirect("feedback-form.php?hospital_id=" . $adminUser['hospital_id']);
             }
         }
     } else {

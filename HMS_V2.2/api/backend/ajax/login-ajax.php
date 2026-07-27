@@ -50,13 +50,21 @@ try {
         $hAdmin = $stmt->fetch();
         
         if ($hAdmin) {
-            if (str_starts_with($hAdmin['password_hash'], '$2y$') ? password_verify($password, $hAdmin['password_hash']) : hash('sha256', $password) === $hAdmin['password_hash']) {
+            $isValid = str_starts_with($hAdmin['password_hash'], '$2y$') 
+                ? password_verify($password, $hAdmin['password_hash']) 
+                : hash('sha256', $password) === $hAdmin['password_hash'];
+                
+            if ($isValid) {
                 $isAuthenticated = true;
                 $_SESSION['admin_id']       = $hAdmin['id'];
                 $_SESSION['admin_username'] = $hAdmin['username'];
                 $_SESSION['hospital_id']    = $hAdmin['hospital_id'];
                 $_SESSION['role']           = $hAdmin['role'];
                 $_SESSION['hospital_name']  = $hAdmin['hospital_name'];
+                
+                setcookie('hms_admin_auth', $_SESSION['admin_id'], time() + 86400, '/');
+                setcookie('hms_admin_token', md5($_SESSION['admin_id'] . 'secret_key_123'), time() + 86400, '/');
+                setcookie('hms_hospital_id', $_SESSION['hospital_id'], time() + 86400, '/');
             }
         }
     }

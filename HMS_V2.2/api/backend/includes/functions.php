@@ -15,10 +15,18 @@ function redirect(string $path): void {
     exit;
 }
 
-/** Start session once */
+/** Start session once and repair it from Vercel stateless cookies if missing */
 function ensureSession(): void {
     if (session_status() === PHP_SESSION_NONE) {
         session_start();
+    }
+    
+    // Bridge for Vercel Serverless environment where PHP /tmp sessions vanish across Lambda calls
+    if (empty($_SESSION['admin_id']) && !empty($_COOKIE['hms_admin_auth'])) {
+        $_SESSION['admin_id'] = (int)$_COOKIE['hms_admin_auth'];
+        $_SESSION['hospital_id'] = (int)$_COOKIE['hms_hospital_id'];
+        $_SESSION['admin_username'] = 'Admin (Restored)';
+        $_SESSION['role'] = 'Hospital Admin';
     }
 }
 
