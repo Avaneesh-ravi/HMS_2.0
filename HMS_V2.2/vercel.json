@@ -1,14 +1,14 @@
 {
   "builds": [
     {
-      "src": "api/index.php",
+      "src": "router.php",
       "use": "vercel-php@0.7.3",
       "config": {
-        "includeFiles": ["api/**"]
+        "includeFiles": ["**/*.php", "**/*.css", "**/*.js"]
       }
     }
   ],
   "routes": [
-    { "src": "/(.*)", "dest": "api/index.php" }
+    { "src": "/(.*)", "dest": "router.php" }
   ]
 }
