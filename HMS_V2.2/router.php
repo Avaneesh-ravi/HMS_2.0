@@ -55,6 +55,13 @@ if (strpos($requestUri, 'api/') === 0) {
             serveStaticFile($uploadFileAlt);
         }
     }
+
+    if (strpos($apiPath, 'frontend/assets/') === 0) {
+        $assetFile = $rootDir . '/frontend/assets/' . substr($apiPath, 16);
+        if (file_exists($assetFile) && is_file($assetFile)) {
+            serveStaticFile($assetFile);
+        }
+    }
     
     if (strpos($apiPath, 'backend/') === 0) {
         $target = $rootDir . '/api/' . $apiPath;
