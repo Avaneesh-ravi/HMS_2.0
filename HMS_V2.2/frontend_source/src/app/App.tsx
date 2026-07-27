@@ -15,6 +15,7 @@ import { FeedbackCard } from './components/FeedbackCard';
 import { SelectableCard } from './components/SelectableCard';
 import { PageTitle } from './components/PageTitle';
 import { AdminDashboard } from './components/AdminDashboard';
+import { HospitalSelection } from './components/HospitalSelection';
 import { toast } from 'sonner';
 import { Toaster } from 'sonner';
 import DatePicker from 'react-datepicker';
@@ -111,6 +112,17 @@ interface BrandingSettings {
 export default function App() {
   const [currentStep, setCurrentStep] = useState(0);
   const [language, setLanguage] = useState<'en' | 'ta'>('en');
+  
+  // Hospital Selection state
+  interface SelectedHospital {
+    id: number;
+    name: string;
+    logo: string | null;
+    address: string | null;
+    contactNumber: string | null;
+  }
+  const [selectedHospital, setSelectedHospital] = useState<SelectedHospital | null>(null);
+  
   const [branding, setBranding] = useState<BrandingSettings>({
     logo: '',
     hospitalName: 'Apollo Healthcare Center',
@@ -312,6 +324,7 @@ export default function App() {
   const [showSuccess, setShowSuccess] = useState(false);
 
   const allSteps = [
+    { id: 'hospital', title: 'Select Hospital', tamilTitle: 'மருத்துவமனையைத் தேர்ந்தெடுக்கவும்' },
     { id: 'patient', title: 'Patient Information', tamilTitle: 'நோயாளி தகவல்' },
     { id: 'service', title: combinePages ? 'Feedback & Questions' : 'Service Feedback', tamilTitle: combinePages ? 'கருத்து & கேள்விகள்' : 'சேவை கருத்து' },
     { id: 'questions', title: 'Questionary Page', tamilTitle: 'கேள்வி பக்கம்' },
@@ -407,7 +420,15 @@ export default function App() {
   };
 
   const handleNext = () => {
+    // Step 0: Hospital selection
     if (currentStep === 0) {
+      if (!selectedHospital) {
+        toast.error(language === 'en' ? 'Please select a hospital to continue' : 'தொடர்ந்து செல்ல மருத்துவமனையைத் தேர்ந்தெடுக்கவும்');
+        return;
+      }
+    }
+    // Step 1: Patient Information (previously step 0)
+    if (currentStep === 1) {
       if (!patientInfo.mobileVerified || (patientInfo.email && !patientInfo.emailVerified)) {
         toast.error(language === 'en' ? 'Please verify contact details to continue' : 'தொடர தொடர்பு விவரங்களை சரிபார்க்கவும்');
         return;
@@ -426,13 +447,28 @@ export default function App() {
     }
   };
 
+  const handleHospitalSelect = (hospital: any) => {
+    setSelectedHospital(hospital);
+    
+    // Update branding based on selected hospital
+    setBranding({
+      logo: hospital.logo || '',
+      hospitalName: hospital.name || 'Hospital',
+      address: hospital.address || '',
+      contactNumber: hospital.contactNumber || '',
+      email: ''
+    });
+    
+    toast.success(language === 'en' ? `${hospital.name} selected` : `${hospital.name} தேர்ந்தெடுக்கப்பட்டது`);
+  };
+
   const handleSubmit = () => {
     try {
       const formData = new FormData();
       
-      // Get hospital_id from URL
-      const urlParams = new URLSearchParams(window.location.search);
-      formData.append('hospital_id', urlParams.get('hospital_id') || '1');
+      // Get hospital_id from selected hospital or URL
+      const hospitalId = selectedHospital?.id || new URLSearchParams(window.location.search).get('hospital_id') || '1';
+      formData.append('hospital_id', hospitalId);
       formData.append('feedback_form_id', '1');
       
       // Patient Info
@@ -905,13 +941,32 @@ export default function App() {
           onStepClick={(index) => setCurrentStep(index)}
         />
 
-        {/* Step 1: Patient Information */}
+        {/* Step 0: Hospital Selection */}
         {currentStep === 0 && (
           <div>
             {showPageTitleLabels && (
               <PageTitle
+                title={language === 'en' ? 'Select Hospital' : 'மருத்துவமனையைத் தேர்ந்தெடுக்கவும்'}
+                subtitle={language === 'en' ? 'Step 1 of 5' : 'படி 1 / 5'}
+              />
+            )}
+            <div className="bg-white rounded-xl shadow-lg p-6 md:p-8">
+              <HospitalSelection
+                selectedHospitalId={selectedHospital?.id || null}
+                onHospitalSelect={handleHospitalSelect}
+                language={language}
+              />
+            </div>
+          </div>
+        )}
+
+        {/* Step 1: Patient Information */}
+        {currentStep === 1 && (
+          <div>
+            {showPageTitleLabels && (
+              <PageTitle
                 title={language === 'en' ? 'Patient Information' : 'நோயாளி தகவல்'}
-                subtitle={language === 'en' ? 'Step 1 of 4' : 'படி 1 / 4'}
+                subtitle={language === 'en' ? 'Step 2 of 5' : 'படி 2 / 5'}
               />
             )}
             <div className="bg-white rounded-xl shadow-lg p-6 md:p-8">
@@ -1478,12 +1533,12 @@ export default function App() {
         )}
 
         {/* Step 2: Service Feedback */}
-        {currentStep === 1 && (
+        {currentStep === 2 && (
           <div>
             {showPageTitleLabels && (
               <PageTitle
                 title={language === 'en' ? (combinePages ? 'Feedback & Questions' : 'Service Feedback') : (combinePages ? 'கருத்து & கேள்விகள்' : 'சேவை கருத்து')}
-                subtitle={language === 'en' ? `Step 2 of ${steps.length}` : `படி 2 / ${steps.length}`}
+                subtitle={language === 'en' ? `Step 3 of ${steps.length}` : `படி 3 / ${steps.length}`}
               />
             )}
             <div className="space-y-6">
@@ -1767,12 +1822,12 @@ export default function App() {
         )}
 
         {/* Step 3: Additional Details (Shown only if NOT combined) */}
-        {!combinePages && currentStep === 2 && (
+        {!combinePages && currentStep === 3 && (
           <div>
             {showPageTitleLabels && (
               <PageTitle
                 title={language === 'en' ? 'Questionary Page' : 'கேள்வி பக்கம்'}
-                subtitle={language === 'en' ? 'Step 3 of 4' : 'படி 3 / 4'}
+                subtitle={language === 'en' ? 'Step 4 of 5' : 'படி 4 / 5'}
               />
             )}
             <div className="space-y-6">
@@ -1986,7 +2041,7 @@ export default function App() {
         )}
 
         {/* Step 4: Review & Submit */}
-        {currentStep === (combinePages ? 2 : 3) && (
+        {currentStep === (combinePages ? 3 : 4) && (
           <div>
             {showPageTitleLabels && (
               <PageTitle
@@ -2010,11 +2065,11 @@ export default function App() {
                 {language === 'en' ? 'Summary' : 'சுருக்கம்'}
               </h4>
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 text-center">
-                {/* Patient - Navigate to Step 0 */}
+                {/* Hospital - Navigate to Step 0 */}
                 <div className="p-4 bg-white/70 rounded-lg">
-                  <p className="text-sm text-gray-600 mb-1">{language === 'en' ? 'Patient' : 'நோயாளி'}</p>
+                  <p className="text-sm text-gray-600 mb-1">{language === 'en' ? 'Hospital' : 'மருத்துவமனை'}</p>
                   <p className="font-semibold text-gray-900">
-                    {language === 'en' ? 'Patient Details' : 'நோயாளி விவரங்கள்'}
+                    {language === 'en' ? 'Hospital Selected' : 'தேர்ந்தெடுக்கப்பட்ட மருத்துவமனை'}
                   </p>
                   <button
                     onClick={() => setCurrentStep(0)}
@@ -2024,35 +2079,35 @@ export default function App() {
                   </button>
                 </div>
 
-                {/* Ratings Provided - Navigate to Step 1 */}
+                {/* Patient - Navigate to Step 1 */}
+                <div className="p-4 bg-white/70 rounded-lg">
+                  <p className="text-sm text-gray-600 mb-1">{language === 'en' ? 'Patient' : 'நோயாளி'}</p>
+                  <p className="font-semibold text-gray-900">
+                    {language === 'en' ? 'Patient Details' : 'நோயாளி விவரங்கள்'}
+                  </p>
+                  <button
+                    onClick={() => setCurrentStep(1)}
+                    className="mt-2 text-gray-600 hover:text-teal-600 transition-colors"
+                  >
+                    <Pencil className="w-4 h-4" />
+                  </button>
+                </div>
+
+                {/* Ratings Provided - Navigate to Step 2 */}
                 <div className="p-4 bg-white/70 rounded-lg">
                   <p className="text-sm text-gray-600 mb-1">{language === 'en' ? 'Ratings Provided' : 'மதிப்பீடுகள்'}</p>
                   <p className="font-semibold text-gray-900">
                     {Object.values(ratings).filter(r => r > 0).length} / 13
                   </p>
                   <button
-                    onClick={() => setCurrentStep(1)}
+                    onClick={() => setCurrentStep(2)}
                     className="mt-2 text-gray-600 hover:text-teal-600 transition-colors"
                   >
                     <Pencil className="w-4 h-4" />
                   </button>
                 </div>
 
-                {/* Overall Rating - Navigate to Step 1 */}
-                <div className="p-4 bg-white/70 rounded-lg">
-                  <p className="text-sm text-gray-600 mb-1">{language === 'en' ? 'Overall Rating' : 'மொத்த மதிப்பீடு'}</p>
-                  <p className="font-semibold text-teal-600">
-                    {ratings.overall > 0 ? `${ratings.overall}/5 ⭐` : (language === 'en' ? 'Not rated' : 'மதிப்பிடப்படவில்லை')}
-                  </p>
-                  <button
-                    onClick={() => setCurrentStep(1)}
-                    className="mt-2 text-gray-600 hover:text-teal-600 transition-colors"
-                  >
-                    <Pencil className="w-4 h-4" />
-                  </button>
-                </div>
-
-                {/* Questionary Page - Navigate to Step 2 */}
+                {/* Questionary Page - Navigate to Step 3 */}
                 <div className="p-4 bg-white/70 rounded-lg">
                   <p className="text-sm text-gray-600 mb-1">{language === 'en' ? 'Questionary Page' : 'கேள்வி பக்கம்'}</p>
                   <p className="font-semibold text-gray-900">
@@ -2062,7 +2117,7 @@ export default function App() {
                     })()}
                   </p>
                   <button
-                    onClick={() => setCurrentStep(2)}
+                    onClick={() => setCurrentStep(3)}
                     className="mt-2 text-gray-600 hover:text-teal-600 transition-colors"
                   >
                     <Pencil className="w-4 h-4" />
