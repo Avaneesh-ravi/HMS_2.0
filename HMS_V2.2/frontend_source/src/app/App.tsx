@@ -16,6 +16,7 @@ import { SelectableCard } from './components/SelectableCard';
 import { PageTitle } from './components/PageTitle';
 import { AdminDashboard } from './components/AdminDashboard';
 import { HospitalSelection } from './components/HospitalSelection';
+import { WelcomePage } from './components/WelcomePage';
 import { toast } from 'sonner';
 import { Toaster } from 'sonner';
 import DatePicker from 'react-datepicker';
@@ -325,6 +326,7 @@ export default function App() {
 
   const allSteps = [
     { id: 'hospital', title: 'Select Hospital', tamilTitle: 'மருத்துவமனையைத் தேர்ந்தெடுக்கவும்' },
+    { id: 'welcome', title: 'Welcome', tamilTitle: 'வரவேற்கிறோம்' },
     { id: 'patient', title: 'Patient Information', tamilTitle: 'நோயாளி தகவல்' },
     { id: 'service', title: combinePages ? 'Feedback & Questions' : 'Service Feedback', tamilTitle: combinePages ? 'கருத்து & கேள்விகள்' : 'சேவை கருத்து' },
     { id: 'questions', title: 'Questionary Page', tamilTitle: 'கேள்வி பக்கம்' },
@@ -427,8 +429,12 @@ export default function App() {
         return;
       }
     }
-    // Step 1: Patient Information (previously step 0)
+    // Step 1: Welcome page (just proceed)
     if (currentStep === 1) {
+      // Welcome page just shows hospital info, no validation needed
+    }
+    // Step 2: Patient Information
+    if (currentStep === 2) {
       if (!patientInfo.mobileVerified || (patientInfo.email && !patientInfo.emailVerified)) {
         toast.error(language === 'en' ? 'Please verify contact details to continue' : 'தொடர தொடர்பு விவரங்களை சரிபார்க்கவும்');
         return;
@@ -960,13 +966,22 @@ export default function App() {
           </div>
         )}
 
-        {/* Step 1: Patient Information */}
-        {currentStep === 1 && (
+        {/* Step 1: Welcome Page */}
+        {currentStep === 1 && selectedHospital && (
+          <WelcomePage
+            hospital={selectedHospital}
+            language={language}
+            onContinue={() => handleNext()}
+          />
+        )}
+
+        {/* Step 2: Patient Information */}
+        {currentStep === 2 && (
           <div>
             {showPageTitleLabels && (
               <PageTitle
                 title={language === 'en' ? 'Patient Information' : 'நோயாளி தகவல்'}
-                subtitle={language === 'en' ? 'Step 2 of 5' : 'படி 2 / 5'}
+                subtitle={language === 'en' ? `Step ${currentStep + 1} of ${steps.length}` : `படி ${currentStep + 1} / ${steps.length}`}
               />
             )}
             <div className="bg-white rounded-xl shadow-lg p-6 md:p-8">
@@ -1532,13 +1547,13 @@ export default function App() {
           </div>
         )}
 
-        {/* Step 2: Service Feedback */}
-        {currentStep === 2 && (
+        {/* Step 3: Service Feedback */}
+        {currentStep === 3 && (
           <div>
             {showPageTitleLabels && (
               <PageTitle
                 title={language === 'en' ? (combinePages ? 'Feedback & Questions' : 'Service Feedback') : (combinePages ? 'கருத்து & கேள்விகள்' : 'சேவை கருத்து')}
-                subtitle={language === 'en' ? `Step 3 of ${steps.length}` : `படி 3 / ${steps.length}`}
+                subtitle={language === 'en' ? `Step ${currentStep + 1} of ${steps.length}` : `படி ${currentStep + 1} / ${steps.length}`}
               />
             )}
             <div className="space-y-6">
@@ -1821,13 +1836,13 @@ export default function App() {
           </div>
         )}
 
-        {/* Step 3: Additional Details (Shown only if NOT combined) */}
-        {!combinePages && currentStep === 3 && (
+        {/* Step 4: Additional Details (Shown only if NOT combined) */}
+        {!combinePages && currentStep === 4 && (
           <div>
             {showPageTitleLabels && (
               <PageTitle
                 title={language === 'en' ? 'Questionary Page' : 'கேள்வி பக்கம்'}
-                subtitle={language === 'en' ? 'Step 4 of 5' : 'படி 4 / 5'}
+                subtitle={language === 'en' ? `Step ${currentStep + 1} of ${steps.length}` : `படி ${currentStep + 1} / ${steps.length}`}
               />
             )}
             <div className="space-y-6">
@@ -2040,8 +2055,8 @@ export default function App() {
         </div>
         )}
 
-        {/* Step 4: Review & Submit */}
-        {currentStep === (combinePages ? 3 : 4) && (
+        {/* Step 5: Review & Submit */}
+        {currentStep === (combinePages ? 4 : 5) && (
           <div>
             {showPageTitleLabels && (
               <PageTitle
@@ -2079,25 +2094,11 @@ export default function App() {
                   </button>
                 </div>
 
-                {/* Patient - Navigate to Step 1 */}
+                {/* Patient - Navigate to Step 2 */}
                 <div className="p-4 bg-white/70 rounded-lg">
                   <p className="text-sm text-gray-600 mb-1">{language === 'en' ? 'Patient' : 'நோயாளி'}</p>
                   <p className="font-semibold text-gray-900">
                     {language === 'en' ? 'Patient Details' : 'நோயாளி விவரங்கள்'}
-                  </p>
-                  <button
-                    onClick={() => setCurrentStep(1)}
-                    className="mt-2 text-gray-600 hover:text-teal-600 transition-colors"
-                  >
-                    <Pencil className="w-4 h-4" />
-                  </button>
-                </div>
-
-                {/* Ratings Provided - Navigate to Step 2 */}
-                <div className="p-4 bg-white/70 rounded-lg">
-                  <p className="text-sm text-gray-600 mb-1">{language === 'en' ? 'Ratings Provided' : 'மதிப்பீடுகள்'}</p>
-                  <p className="font-semibold text-gray-900">
-                    {Object.values(ratings).filter(r => r > 0).length} / 13
                   </p>
                   <button
                     onClick={() => setCurrentStep(2)}
@@ -2107,7 +2108,21 @@ export default function App() {
                   </button>
                 </div>
 
-                {/* Questionary Page - Navigate to Step 3 */}
+                {/* Ratings Provided - Navigate to Step 3 */}
+                <div className="p-4 bg-white/70 rounded-lg">
+                  <p className="text-sm text-gray-600 mb-1">{language === 'en' ? 'Ratings Provided' : 'மதிப்பீடுகள்'}</p>
+                  <p className="font-semibold text-gray-900">
+                    {Object.values(ratings).filter(r => r > 0).length} / 13
+                  </p>
+                  <button
+                    onClick={() => setCurrentStep(3)}
+                    className="mt-2 text-gray-600 hover:text-teal-600 transition-colors"
+                  >
+                    <Pencil className="w-4 h-4" />
+                  </button>
+                </div>
+
+                {/* Questionary Page - Navigate to Step 4 */}
                 <div className="p-4 bg-white/70 rounded-lg">
                   <p className="text-sm text-gray-600 mb-1">{language === 'en' ? 'Questionary Page' : 'கேள்வி பக்கம்'}</p>
                   <p className="font-semibold text-gray-900">
@@ -2117,7 +2132,7 @@ export default function App() {
                     })()}
                   </p>
                   <button
-                    onClick={() => setCurrentStep(3)}
+                    onClick={() => setCurrentStep(4)}
                     className="mt-2 text-gray-600 hover:text-teal-600 transition-colors"
                   >
                     <Pencil className="w-4 h-4" />
