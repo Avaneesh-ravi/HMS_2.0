@@ -75,7 +75,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     <div class="col-md-4">
       <div class="card-soft text-center">
         <h4 class="mb-1">Hospital Admin</h4>
-        <p class="text-muted small mb-4">Apollo Healthcare Center</p>
+        <p class="text-muted small mb-4">System Administration</p>
         <?php if ($error): ?><div class="alert alert-danger py-2"><?= clean($error) ?></div><?php endif; ?>
         <form method="POST" class="text-left">
           <div class="form-group">

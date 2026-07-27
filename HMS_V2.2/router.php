@@ -39,6 +39,12 @@ function serveStaticFile($file) {
     return false;
 }
 
+// Intercept direct backend route requests and redirect to api/
+if (strpos($requestUri, 'backend/') === 0 && strpos($requestUri, 'backend/uploads/') !== 0) {
+    header('Location: /api/' . $requestUri);
+    exit;
+}
+
 // Handle API requests (/api/...)
 if (strpos($requestUri, 'api/') === 0) {
     $apiPath = substr($requestUri, 4); // Remove 'api/' prefix
