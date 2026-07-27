@@ -9,10 +9,45 @@ $stmt = $pdo->prepare("SELECT name FROM hospital WHERE hospital_id = ?");
 $stmt->execute([$hospitalId]);
 $hospitalName = $stmt->fetchColumn() ?: 'Healthcare Center';
 
+$error = '';
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    // Dummy authentication for UI flow demonstration
     $hId = (int)$_POST['hospital_id'];
-    redirect("feedback-form.php?hospital_id=" . $hId);
+    $userid = trim($_POST['userid'] ?? '');
+    $pass = $_POST['password'] ?? '';
+    
+    // Check if the user is an admin in the database
+    $stmt = $pdo->prepare("SELECT * FROM hospital_admin WHERE email = :e OR username = :u LIMIT 1");
+    $stmt->execute([':e' => $userid, ':u' => $userid]);
+    $adminUser = $stmt->fetch();
+    
+    if ($adminUser) {
+        // They typed admin credentials
+        if ($adminUser['hospital_id'] != $hId && $adminUser['hospital_id'] != 0) {
+            $error = 'These credentials do not belong to this hospital. Access denied.';
+        } else {
+            // Verify password
+            $isValid = str_starts_with($adminUser['password_hash'], '$2y$') ? password_verify($pass, $adminUser['password_hash']) : hash('sha256', $pass) === $adminUser['password_hash'];
+            if (!$isValid) {
+                $error = 'Invalid password.';
+            } else {
+                // Log them in as admin and redirect to dashboard
+                $_SESSION['admin_id'] = $adminUser['hospital_admin_id'];
+                $_SESSION['admin_username'] = $adminUser['username'];
+                $_SESSION['hospital_id'] = $adminUser['hospital_id'];
+                $_SESSION['role'] = $adminUser['role'];
+                redirect('../backend/admin/dashboard.php');
+            }
+        }
+    } else {
+        // If they are not an admin, we assume it's a patient dummy login
+        // For security, if they typed anything that looks like an attempt, we can let them through 
+        // to the patient form OR require a real check. The prompt implies they wanted an error for WRONG credentials.
+        if ($userid === 'patient' || empty($userid)) {
+            redirect("feedback-form.php?hospital_id=" . $hId);
+        } else {
+            $error = 'Invalid patient ID or unregistered user.';
+        }
+    }
 }
 require_once 'includes/header.php';
 ?>
@@ -27,6 +62,10 @@ require_once 'includes/header.php';
             
             <h3 class="mb-1" style="color:var(--navy); font-weight:700; font-size: 30px;"><?= clean($hospitalName) ?></h3>
             <p class="mb-4" style="color: var(--text-secondary); font-size: 14px; font-weight: 400;">Patient Feedback Portal</p>
+            
+            <?php if (!empty($error)): ?>
+                <div class="alert alert-danger" style="font-size: 14px; padding: 10px; border-radius: 8px; margin-bottom: 20px;"><?= clean($error) ?></div>
+            <?php endif; ?>
 
             <form method="POST">
                 <input type="hidden" name="hospital_id" value="<?= $hospitalId ?>">
