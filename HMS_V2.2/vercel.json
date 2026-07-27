@@ -4,11 +4,18 @@
       "src": "router.php",
       "use": "vercel-php@0.7.3",
       "config": {
-        "includeFiles": ["**/*.php", "**/*.css", "**/*.js"]
+        "includeFiles": [
+          "router.php",
+          "frontend/**",
+          "api/**/*.php",
+          "includes/**/*.php",
+          ".env"
+        ]
       }
     }
   ],
   "routes": [
-    { "src": "/(.*)", "dest": "router.php" }
+    { "src": "/frontend/(.*)", "dest": "/frontend/$1" },
+    { "src": "/(.*)", "dest": "/router.php" }
   ]
 }
