@@ -1,7 +1,7 @@
 <?php
 $pageTitle = 'Select Hospital';
-require_once '../backend/includes/functions.php';
-require_once '../backend/config/database.php';
+require_once(__DIR__ . '/../backend/includes/functions.php');
+require_once __DIR__ . '/' . '../backend/config/database.php';
 require_once 'includes/header.php';
 
 $pdo = getDBConnection();

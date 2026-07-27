@@ -1,7 +1,7 @@
 <?php
 $pageTitle = 'Hospital Login';
-require_once '../backend/includes/functions.php';
-require_once '../backend/config/database.php';
+require_once __DIR__ . '/' . '../backend/includes/functions.php';
+require_once __DIR__ . '/' . '../backend/config/database.php';
 
 $hospitalId = (int)($_GET['hospital_id'] ?? 1);
 $pdo = getDBConnection();

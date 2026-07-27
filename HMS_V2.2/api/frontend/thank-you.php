@@ -1,5 +1,5 @@
 <?php
-require_once '../backend/includes/functions.php';
+require_once __DIR__ . '/' . '../backend/includes/functions.php';
 $pageTitle = 'Thank You';
 require_once 'includes/header.php';
 ?>

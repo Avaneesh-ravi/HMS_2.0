@@ -1,6 +1,6 @@
 <?php
-require_once '../backend/includes/functions.php';
-require_once '../backend/config/database.php';
+require_once __DIR__ . '/' . '../backend/includes/functions.php';
+require_once __DIR__ . '/' . '../backend/config/database.php';
 
 $hospital_id = (int)($_GET['hospital_id'] ?? 1);
 $hospitalName = 'Healthcare Center';
