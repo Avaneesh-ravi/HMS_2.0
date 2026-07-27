@@ -87,7 +87,7 @@ try {
             'uhid' => $row['uhid'] ?: 'N/A',
             'patientName' => $row['full_name'],
             'date' => date('d/m/Y', strtotime($row['submitted_at'])),
-            'visitType' => $row['visit_type'],
+            'visitType' => $row['visit_type'] ?? ($row['op_no'] ? 'OP' : 'IP'),
             'mobile' => $row['mobile_number'],
             'email' => $row['patient_email'] ?? '',
             'address' => $row['patient_address'] ?? '',
