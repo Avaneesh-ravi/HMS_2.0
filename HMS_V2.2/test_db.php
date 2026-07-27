@@ -1,7 +1,7 @@
 <?php
 require 'backend/config/database.php';
 $pdo = getDBConnection();
-$stmt = $pdo->query('SHOW COLUMNS FROM feedback_form');
+$stmt = $pdo->query("SELECT column_name FROM information_schema.columns WHERE table_name = 'feedback_form'");
 print_r($stmt->fetchAll(PDO::FETCH_ASSOC));
 
 $stmt2 = $pdo->query('SELECT * FROM feedback_form WHERE hospital_id = 1');

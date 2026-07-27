@@ -40,7 +40,7 @@ function insertPatient(PDO $pdo, array $d): int {
             (patient_uuid, uhid, first_name, age, gender, mobile, p_email, address,
              pin_code, city, state, country, op_no, ip_no, admission_date, discharge_date, hospital_id, feedback_form_id)
             VALUES
-            (UUID(), :uhid, :first_name, :age, :gender, :mobile, :email, :address,
+            (gen_random_uuid(), :uhid, :first_name, :age, :gender, :mobile, :email, :address,
              :pincode, :city, :state, :country, :op_no, :ip_no, :admission_date, :discharge_date, :hospital_id, :feedback_form_id)";
     $stmt = $pdo->prepare($sql);
     $stmt->execute([
@@ -246,7 +246,7 @@ function getDashboardStats(PDO $pdo, int $hospitalId = 0): array {
     $totalStmt->execute($params);
     $total = (int) $totalStmt->fetch()['c'];
     
-    $todayStmt = $pdo->prepare("SELECT COUNT(*) c FROM feedback_submission " . ($where ? "$where AND" : "WHERE") . " DATE(submission_date) = CURDATE()");
+    $todayStmt = $pdo->prepare("SELECT COUNT(*) c FROM feedback_submission " . ($where ? "$where AND" : "WHERE") . " DATE(submission_date) = CURRENT_DATE");
     $todayStmt->execute($params);
     $today = (int) $todayStmt->fetch()['c'];
 
