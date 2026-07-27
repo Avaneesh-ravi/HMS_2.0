@@ -44,6 +44,18 @@ if (strpos($requestUri, 'api/') === 0) {
     $apiPath = substr($requestUri, 4); // Remove 'api/' prefix
     
     // Route to api/backend or api/frontend PHP files
+    if (strpos($apiPath, 'backend/uploads/') === 0) {
+        // Serve static uploads
+        $uploadFile = $rootDir . '/backend/uploads/' . substr($apiPath, 16);
+        if (file_exists($uploadFile) && is_file($uploadFile)) {
+            serveStaticFile($uploadFile);
+        }
+        $uploadFileAlt = $rootDir . '/api/backend/uploads/' . substr($apiPath, 16);
+        if (file_exists($uploadFileAlt) && is_file($uploadFileAlt)) {
+            serveStaticFile($uploadFileAlt);
+        }
+    }
+    
     if (strpos($apiPath, 'backend/') === 0) {
         $target = $rootDir . '/api/' . $apiPath;
     } elseif (strpos($apiPath, 'frontend/') === 0) {
@@ -86,15 +98,23 @@ if (file_exists($staticFile) && is_file($staticFile)) {
     serveStaticFile($staticFile);
 }
 
-// Handle root request or any non-API, non-file request → serve frontend SPA
-if ($requestUri === '' || $requestUri === 'index.php' || $requestUri === 'index.html') {
+// Handle root request → Redirect to PHP Hospital Selection Page
+if ($requestUri === '' || $requestUri === 'index.php') {
+    header('Location: /api/frontend/index.php');
+    exit;
+}
+
+// If someone specifically requests index.html (the SPA / Apollo Hospital form)
+if ($requestUri === 'index.html') {
     serveStaticFile($rootDir . '/frontend/index.html');
 }
 
-// For all other routes (SPA routing), serve the frontend index.html
-$indexFile = $rootDir . '/frontend/index.html';
-if (file_exists($indexFile)) {
-    serveStaticFile($indexFile);
+// For all other routes (SPA routing), serve the frontend index.html if it's a non-API route
+if (strpos($requestUri, 'api/') !== 0) {
+    $indexFile = $rootDir . '/frontend/index.html';
+    if (file_exists($indexFile)) {
+        serveStaticFile($indexFile);
+    }
 }
 
 // Fallback 404
