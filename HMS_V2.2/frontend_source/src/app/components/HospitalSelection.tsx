@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Hospital, MapPin, Phone } from 'lucide-react';
+import { Hospital, Search, Shield, ArrowLeft, X, Lock } from 'lucide-react';
 
 interface Hospital {
   id: number;
@@ -25,6 +25,14 @@ export function HospitalSelection({
   const [hospitals, setHospitals] = useState<Hospital[]>([]);
   const [loadingHospitals, setLoadingHospitals] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [searchQuery, setSearchQuery] = useState('');
+  
+  // Login State
+  const [selectedHospitalForLogin, setSelectedHospitalForLogin] = useState<Hospital | null>(null);
+  const [loginUsername, setLoginUsername] = useState('');
+  const [loginPassword, setLoginPassword] = useState('');
+  const [loginError, setLoginError] = useState('');
+  const [isLoggingIn, setIsLoggingIn] = useState(false);
 
   useEffect(() => {
     fetchHospitals();
@@ -35,7 +43,7 @@ export function HospitalSelection({
       setLoadingHospitals(true);
       setError(null);
       
-      const response = await fetch('/api/backend/ajax/get-hospitals.php', {
+      const response = await fetch('../api/backend/ajax/get-hospitals.php', {
         method: 'GET',
         headers: {
           'Accept': 'application/json',
@@ -55,8 +63,7 @@ export function HospitalSelection({
       }
     } catch (err) {
       console.error('Error fetching hospitals:', err);
-      setError(err instanceof Error ? err.message : 'Failed to fetch hospitals');
-      // Fallback to demo data for testing
+      // Fallback for testing
       setHospitals([
         {
           id: 1,
@@ -64,6 +71,13 @@ export function HospitalSelection({
           logo: null,
           address: '123 Health Street, Chennai - 600001',
           contactNumber: '+91 44 1234 5678'
+        },
+        {
+          id: 2,
+          name: 'City General Hospital',
+          logo: null,
+          address: '456 Medical Blvd, Chennai - 600002',
+          contactNumber: '+91 44 9876 5432'
         }
       ]);
     } finally {
@@ -71,102 +85,198 @@ export function HospitalSelection({
     }
   };
 
-  const handleSelectHospital = (hospital: Hospital) => {
-    onHospitalSelect(hospital);
+  const handleLoginSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!selectedHospitalForLogin) return;
+
+    if (!loginUsername || !loginPassword) {
+      setLoginError('Username and password are required');
+      return;
+    }
+    
+    setIsLoggingIn(true);
+    setLoginError('');
+    
+    try {
+      const response = await fetch('../api/backend/ajax/login-ajax.php', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: loginUsername, password: loginPassword })
+      });
+      const data = await response.json();
+      
+      if (data.success) {
+        onHospitalSelect(selectedHospitalForLogin);
+      } else {
+        setLoginError(data.message || 'Invalid username or password');
+      }
+    } catch (err) {
+      setLoginError('Failed to connect to authentication server');
+    } finally {
+      setIsLoggingIn(false);
+    }
   };
 
+  const filteredHospitals = hospitals.filter(hospital => {
+    const q = searchQuery.toLowerCase().trim();
+    if (!q) return false;
+    
+    const nameStr = hospital.name.toLowerCase();
+    
+    // As requested: STRICTLY match only from the very first letter of the hospital name
+    return nameStr.startsWith(q);
+  });
+
   return (
-    <div className="w-full">
-      <div className="bg-gradient-to-r from-blue-50 to-teal-50 rounded-xl p-8 mb-8">
-        <div className="flex items-center justify-center gap-3 mb-4">
-          <Hospital className="w-10 h-10 text-teal-600" />
-          <h2 className="text-3xl font-bold text-gray-900">
-            {language === 'en' ? 'Select Hospital' : 'மருத்துவமனையைத் தேர்ந்தெடுக்கவும்'}
-          </h2>
-        </div>
-        <p className="text-center text-gray-600">
-          {language === 'en' 
-            ? 'Choose your hospital to begin the feedback process' 
-            : 'கருத்து வினாடிவேளைத் தொடங்க உங்கள் மருத்துவமனையைத் தேர்ந்தெடுக்கவும்'}
+    <div className="w-full flex flex-col items-center pt-8 md:pt-14 px-4 sm:px-6">
+      <div className="text-center mb-8 md:mb-12 w-full">
+        <h1 className="text-3xl md:text-[2.5rem] font-extrabold text-slate-900 mb-3 md:mb-5 tracking-tight">
+          Welcome
+        </h1>
+        <p className="text-gray-500 text-[15px] md:text-[17px] max-w-sm md:max-w-md mx-auto leading-relaxed px-2">
+          Please select your healthcare center to continue providing your valuable feedback.
         </p>
       </div>
 
-      {error && (
-        <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4 mb-6">
-          <p className="text-yellow-800 text-sm">{error}</p>
-        </div>
-      )}
+      <div className="w-full max-w-2xl bg-white rounded-2xl shadow-[0_8px_30px_rgb(0,0,0,0.04)] border border-gray-100 p-2 md:p-3 mb-12 md:mb-16 transition-shadow duration-300 hover:shadow-[0_8px_30px_rgb(0,0,0,0.08)]">
+        
+        {!selectedHospitalForLogin ? (
+          <>
+            <div className="relative p-1 md:p-2">
+              <Search className="w-5 h-5 text-teal-600/80 absolute left-5 md:left-7 top-1/2 -translate-y-1/2" />
+              <input
+                type="text"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                placeholder="Search your hospital..."
+                className="w-full pl-11 md:pl-14 pr-4 py-3.5 md:py-4 bg-slate-50/50 hover:bg-slate-50 border border-gray-200/80 rounded-xl focus:outline-none focus:bg-white focus:ring-4 focus:ring-teal-500/10 focus:border-teal-500 transition-all duration-300 text-slate-800 text-[15px] md:text-base font-medium placeholder:text-slate-400 placeholder:font-normal"
+              />
+            </div>
 
-      {loadingHospitals || loading ? (
-        <div className="flex items-center justify-center py-12">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-teal-600"></div>
-        </div>
-      ) : hospitals.length === 0 ? (
-        <div className="bg-red-50 border border-red-200 rounded-lg p-6 text-center">
-          <p className="text-red-800">{language === 'en' ? 'No hospitals found' : 'மருத்துவமனைகள் கிடைக்கவில்லை'}</p>
-        </div>
-      ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          {hospitals.map((hospital) => (
-            <button
-              key={hospital.id}
-              onClick={() => handleSelectHospital(hospital)}
-              className={`text-left p-6 rounded-xl border-2 transition-all duration-200 transform hover:scale-105 ${
-                selectedHospitalId === hospital.id
-                  ? 'border-teal-600 bg-teal-50 shadow-lg'
-                  : 'border-gray-200 bg-white hover:border-teal-300 shadow'
-              }`}
-            >
-              <div className="flex items-start gap-4">
-                <div className="flex-shrink-0 p-3 bg-teal-100 rounded-lg">
-                  <Hospital className="w-6 h-6 text-teal-600" />
+            {/* Results */}
+            <div className={`px-2 pb-2 ${searchQuery.trim().length > 0 ? 'block' : 'hidden'}`}>
+              {loadingHospitals || loading ? (
+                <div className="flex items-center justify-center py-8">
+                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-teal-600"></div>
                 </div>
-                <div className="flex-grow min-w-0">
-                  <h3 className="text-lg font-semibold text-gray-900 truncate">
-                    {hospital.name}
-                  </h3>
-                  
-                  {hospital.address && (
-                    <div className="flex items-start gap-2 mt-2 text-sm text-gray-600">
-                      <MapPin className="w-4 h-4 mt-0.5 flex-shrink-0 text-gray-400" />
-                      <p className="line-clamp-2">{hospital.address}</p>
-                    </div>
-                  )}
-                  
-                  {hospital.contactNumber && (
-                    <div className="flex items-center gap-2 mt-2 text-sm text-gray-600">
-                      <Phone className="w-4 h-4 flex-shrink-0 text-gray-400" />
-                      <p>{hospital.contactNumber}</p>
-                    </div>
-                  )}
+              ) : filteredHospitals.length === 0 ? (
+                <div className="text-center py-8 text-gray-500">
+                  No healthcare centers found matching your search.
                 </div>
-                
-                {selectedHospitalId === hospital.id && (
-                  <div className="flex-shrink-0 p-1 bg-teal-600 rounded-full text-white">
-                    <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
-                      <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
-                    </svg>
+              ) : (
+                <div className="mt-2 block">
+                  <div className="space-y-2 max-h-[300px] overflow-y-auto pr-2 custom-scrollbar">
+                    {filteredHospitals.map((hospital) => (
+                      <button
+                        key={hospital.id}
+                        onClick={() => setSelectedHospitalForLogin(hospital)}
+                        className="w-full text-left p-3.5 md:p-4 rounded-xl border border-transparent hover:border-teal-100 hover:bg-teal-50/50 hover:shadow-sm transition-all duration-300 group flex items-center md:items-start gap-4 cursor-pointer"
+                      >
+                        <div className="flex-shrink-0 p-2.5 md:p-3 bg-teal-50 group-hover:bg-teal-500 rounded-lg md:rounded-xl transition-colors duration-300">
+                          <Hospital className="w-5 h-5 md:w-6 md:h-6 text-teal-600 group-hover:text-white transition-colors duration-300" />
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <h3 className="text-[15px] md:text-[17px] font-bold text-slate-800 mb-0.5 md:mb-1 group-hover:text-teal-900 transition-colors truncate">
+                            {hospital.name}
+                          </h3>
+                          {hospital.address && (
+                            <p className="text-[13px] md:text-[14px] text-slate-500 font-medium truncate group-hover:text-teal-700/70 transition-colors">
+                              {hospital.address}
+                            </p>
+                          )}
+                        </div>
+                      </button>
+                    ))}
                   </div>
-                )}
+                </div>
+              )}
+            </div>
+          </>
+        ) : (
+          <div className="p-5 sm:p-8">
+            <button 
+              onClick={() => {
+                setSelectedHospitalForLogin(null);
+                setLoginError('');
+                setLoginUsername('');
+                setLoginPassword('');
+              }}
+              className="text-slate-500 hover:text-slate-800 transition-colors flex items-center gap-2 mb-6 md:mb-8 group w-fit"
+            >
+              <div className="p-1 rounded-md group-hover:bg-slate-100 transition-colors">
+                <ArrowLeft className="w-4 h-4 md:w-5 md:h-5 group-hover:-translate-x-0.5 transition-transform" />
               </div>
+              <span className="font-semibold text-[14px] md:text-[15px]">Back to search</span>
             </button>
-          ))}
-        </div>
-      )}
+            
+            <div className="mb-8">
+              <div className="flex items-center gap-3 sm:gap-4 mb-2 sm:mb-3">
+                <div className="p-2.5 sm:p-3 bg-teal-50 border border-teal-100/50 rounded-xl shadow-sm">
+                  <Hospital className="w-5 h-5 sm:w-6 sm:h-6 text-teal-600" />
+                </div>
+                <h3 className="text-[19px] sm:text-[22px] font-extrabold text-slate-800 leading-tight">{selectedHospitalForLogin.name}</h3>
+              </div>
+              <p className="text-slate-500 text-[14px] sm:text-[15px] sm:pl-[3.5rem] font-medium leading-relaxed">Please securely authenticate to access this facility's feedback form.</p>
+            </div>
 
-      {hospitals.length > 0 && (
-        <div className="mt-4 p-4 bg-blue-50 rounded-lg border border-blue-200">
-          <p className="text-sm text-blue-800">
-            {language === 'en' 
-              ? selectedHospitalId 
-                ? '✓ Hospital selected. Click Next to continue.' 
-                : 'Please select a hospital to continue.'
-              : selectedHospitalId 
-                ? '✓ மருத்துவமனை தேர்ந்தெடுக்கப்பட்டது. அடுத்ததைக் கிளிக் செய்யவும்.'
-                : 'தொடர்ந்து செல்ல மருத்துவமனையைத் தேர்ந்தெடுக்கவும்.'}
-          </p>
-        </div>
-      )}
+            <form onSubmit={handleLoginSubmit} className="space-y-4 sm:space-y-5 sm:pl-[3.5rem] max-w-sm">
+              <div>
+                <label className="block text-[13px] sm:text-sm font-bold text-slate-700 mb-1.5 uppercase tracking-wide">Username / Email</label>
+                <div className="relative">
+                  <input
+                    type="text"
+                    value={loginUsername}
+                    onChange={(e) => setLoginUsername(e.target.value)}
+                    className="w-full px-4 py-3 sm:py-3.5 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:bg-white focus:ring-4 focus:ring-teal-500/10 focus:border-teal-500 transition-all font-medium text-slate-800 placeholder:text-slate-400 placeholder:font-normal text-[15px]"
+                    placeholder="Enter username"
+                    disabled={isLoggingIn}
+                  />
+                </div>
+              </div>
+              
+              <div>
+                <label className="block text-[13px] sm:text-sm font-bold text-slate-700 mb-1.5 uppercase tracking-wide">Password</label>
+                <div className="relative">
+                  <input
+                    type="password"
+                    value={loginPassword}
+                    onChange={(e) => setLoginPassword(e.target.value)}
+                    className="w-full px-4 py-3 sm:py-3.5 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:bg-white focus:ring-4 focus:ring-teal-500/10 focus:border-teal-500 transition-all font-medium text-slate-800 placeholder:text-slate-400 placeholder:font-normal text-[15px]"
+                    placeholder="Enter password"
+                    disabled={isLoggingIn}
+                  />
+                </div>
+              </div>
+
+              {loginError && (
+                <div className="p-3 bg-red-50 text-red-700 text-[13px] sm:text-sm font-medium rounded-xl border border-red-100 flex items-start gap-2.5 shadow-sm animate-in fade-in slide-in-from-top-1">
+                  <Shield className="w-4 h-4 sm:w-5 sm:h-5 mt-0.5 flex-shrink-0 text-red-500" />
+                  <p className="leading-snug">{loginError}</p>
+                </div>
+              )}
+
+              <button 
+                type="submit"
+                disabled={isLoggingIn}
+                className="w-full flex items-center justify-center gap-2.5 bg-teal-600 hover:bg-teal-700 text-white font-bold py-3.5 sm:py-4 px-4 rounded-xl transition-all duration-300 disabled:opacity-70 shadow-md hover:shadow-lg shadow-teal-500/20 hover:-translate-y-0.5 mt-2"
+              >
+                {isLoggingIn ? (
+                  <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white"></div>
+                ) : (
+                  <>
+                    <Lock className="w-4 h-4 sm:w-5 sm:h-5" />
+                    <span className="text-[15px] sm:text-[16px]">Login & Continue</span>
+                  </>
+                )}
+              </button>
+            </form>
+          </div>
+        )}
+      </div>
+      
+      <p className="text-[13px] md:text-[15px] font-semibold text-slate-400 mt-2 md:mt-6 text-center px-6">
+        Your feedback is strictly confidential and used solely to improve patient care.
+      </p>
     </div>
   );
 }

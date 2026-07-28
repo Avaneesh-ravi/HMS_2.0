@@ -22,11 +22,15 @@ function ensureSession(): void {
     }
     
     // Bridge for Vercel Serverless environment where PHP /tmp sessions vanish across Lambda calls
-    if (empty($_SESSION['admin_id']) && !empty($_COOKIE['hms_admin_auth'])) {
-        $_SESSION['admin_id'] = (int)$_COOKIE['hms_admin_auth'];
-        $_SESSION['hospital_id'] = (int)$_COOKIE['hms_hospital_id'];
-        $_SESSION['admin_username'] = 'Admin (Restored)';
-        $_SESSION['role'] = 'Hospital Admin';
+    if (empty($_SESSION['admin_id']) && !empty($_COOKIE['hms_admin_auth']) && !empty($_COOKIE['hms_admin_token'])) {
+        $secret = getenv('APP_SECRET') ?: 'secret_key_123';
+        $expectedToken = md5($_COOKIE['hms_admin_auth'] . $secret);
+        if ($_COOKIE['hms_admin_token'] === $expectedToken) {
+            $_SESSION['admin_id'] = (int)$_COOKIE['hms_admin_auth'];
+            $_SESSION['hospital_id'] = (int)($_COOKIE['hms_hospital_id'] ?? 0);
+            $_SESSION['admin_username'] = 'Admin (Restored)';
+            $_SESSION['role'] = 'Hospital Admin';
+        }
     }
 }
 
@@ -63,8 +67,8 @@ function insertPatient(PDO $pdo, array $d): int {
         ':city'            => $d['city'] ?: null,
         ':state'           => $d['state'] ?: 'Tamil Nadu',
         ':country'         => $d['country'] ?: 'India',
-        ':op_no'           => ($d['visit_type'] === 'OP') ? ($d['visit_uhid'] ?: null) : null,
-        ':ip_no'           => ($d['visit_type'] === 'IP') ? ($d['visit_uhid'] ?: null) : null,
+        ':op_no'           => ($d['visit_type'] === 'OP') ? ($d['op_id'] ?: null) : null,
+        ':ip_no'           => ($d['visit_type'] === 'IP') ? ($d['ip_id'] ?: null) : null,
         ':admission_date'  => $d['admission_date'] ?: null,
         ':discharge_date'  => $d['discharge_date'] ?: null,
         ':hospital_id'     => $d['hospital_id'] ?? 1,

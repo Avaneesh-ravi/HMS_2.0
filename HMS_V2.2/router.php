@@ -32,7 +32,13 @@ function getMimeType($file) {
 function serveStaticFile($file) {
     if (file_exists($file) && is_file($file)) {
         header('Content-Type: ' . getMimeType($file));
-        header('Cache-Control: public, max-age=31536000');
+        if (pathinfo($file, PATHINFO_EXTENSION) === 'html') {
+            header('Cache-Control: no-cache, no-store, must-revalidate');
+            header('Pragma: no-cache');
+            header('Expires: 0');
+        } else {
+            header('Cache-Control: public, max-age=31536000');
+        }
         readfile($file);
         exit;
     }

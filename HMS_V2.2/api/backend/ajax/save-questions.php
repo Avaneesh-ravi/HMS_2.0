@@ -27,7 +27,7 @@ try {
     }
 
     $rawInput = file_get_contents('php://input');
-    file_put_contents('payload.log', $rawInput . PHP_EOL, FILE_APPEND);
+    error_log("Received save-questions payload size: " . strlen($rawInput));
     $data = json_decode($rawInput, true);
 
     if (!isset($data['questions'])) {
@@ -38,7 +38,7 @@ try {
     $questions = $data['questions'];
 
     // Get the first feedback form for this hospital
-    $stmt = $pdo->prepare("SELECT feedback_form_id FROM feedback_form WHERE hospital_id = ? LIMIT 1");
+    $stmt = $pdo->prepare("SELECT feedback_form_id FROM feedback_form WHERE hospital_id = ? ORDER BY feedback_form_id ASC LIMIT 1");
     $stmt->execute([$hospitalId]);
     $formId = $stmt->fetchColumn();
 
@@ -56,7 +56,7 @@ try {
 
     $displayOrder = 1;
     $insertMapStmt = $pdo->prepare("INSERT INTO feedback_form_rating_question (feedback_form_id, question_id, display_order, status) VALUES (?, ?, ?, 'Active')");
-    $insertQStmt = $pdo->prepare("INSERT INTO rating_question (question_tag, question_text_en, question_text_ta, active, rating_grade, hospital_id, status) VALUES (?, ?, ?, 1, ?, ?, 'Active')");
+    $insertQStmt = $pdo->prepare("INSERT INTO rating_question (question_tag, question_text_en, question_text_ta, active, rating_grade, hospital_id, status) VALUES (?, ?, ?, 1, ?, ?, 'Active') RETURNING question_id");
     $updateQStmt = $pdo->prepare("UPDATE rating_question SET question_tag = ?, question_text_en = ?, question_text_ta = ?, rating_grade = ? WHERE question_id = ?");
     $checkQStmt = $pdo->prepare("SELECT hospital_id FROM rating_question WHERE question_id = ?");
 
@@ -76,7 +76,7 @@ try {
                 $ratingGrade,
                 $hospitalId
             ]);
-            $qid = $pdo->lastInsertId();
+            $qid = (int)$insertQStmt->fetchColumn();
         } else {
             // Check if the question belongs to this hospital
             $checkQStmt->execute([$qid]);
@@ -100,7 +100,7 @@ try {
                     $ratingGrade,
                     $hospitalId
                 ]);
-                $qid = $pdo->lastInsertId();
+                $qid = (int)$insertQStmt->fetchColumn();
             }
         }
 
@@ -115,19 +115,45 @@ try {
         $pdo->beginTransaction();
         $yesnoQuestions = $data['yesno_questions'];
 
-        $updateYnStmt = $pdo->prepare("UPDATE yesno_question SET question_en = ?, question_ta = ?, answer_for_no = ? WHERE yesno_question_id = ? AND feedback_form_id = ?");
+        $updateYnStmt = $pdo->prepare("UPDATE yesno_question SET question_en = ?, question_ta = ?, answer_for_no = ?, describe_issue_trigger = ?, status = 'Active' WHERE yesno_question_id = ? AND feedback_form_id = ?");
+        $insertYnStmt = $pdo->prepare("INSERT INTO yesno_question (feedback_form_id, question_en, question_ta, answer_for_no, describe_issue_trigger, status) VALUES (?, ?, ?, ?, ?, 'Active') RETURNING yesno_question_id");
 
+        $incomingIds = [];
         foreach ($yesnoQuestions as $yq) {
-            // Since AdminDashboard doesn't add/remove yesno questions (only edits colors), we just update existing ones by ID
+            $trigger = in_array($yq['describeIssueTrigger'] ?? 'no', ['no', 'yes', 'both', 'never']) ? ($yq['describeIssueTrigger'] ?? 'no') : 'no';
+            
             if (!empty($yq['id']) && is_numeric($yq['id'])) {
+                $incomingIds[] = (int)$yq['id'];
                 $updateYnStmt->execute([
                     $yq['label'],
                     $yq['tamilLabel'],
                     !empty($yq['backgroundColor']) ? $yq['backgroundColor'] : 'No',
+                    $trigger,
                     $yq['id'],
                     $formId
                 ]);
+            } else {
+                $insertYnStmt->execute([
+                    $formId,
+                    $yq['label'],
+                    $yq['tamilLabel'],
+                    !empty($yq['backgroundColor']) ? $yq['backgroundColor'] : 'No',
+                    $trigger
+                ]);
+                $incomingIds[] = (int)$insertYnStmt->fetchColumn();
             }
+        }
+        
+        // Soft-delete items not in incoming array
+        if (!empty($incomingIds)) {
+            $placeholders = implode(',', array_fill(0, count($incomingIds), '?'));
+            $delStmt = $pdo->prepare("UPDATE yesno_question SET status = 'Inactive' WHERE feedback_form_id = ? AND yesno_question_id NOT IN ($placeholders)");
+            $params = array_merge([$formId], $incomingIds);
+            $delStmt->execute($params);
+        } else {
+            // Delete all if empty
+            $delStmt = $pdo->prepare("UPDATE yesno_question SET status = 'Inactive' WHERE feedback_form_id = ?");
+            $delStmt->execute([$formId]);
         }
         $pdo->commit();
     }

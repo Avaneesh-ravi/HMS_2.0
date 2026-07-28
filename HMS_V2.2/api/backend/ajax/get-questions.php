@@ -11,8 +11,8 @@ try {
     $pdo = getDBConnection();
     $hospitalId = (int)($_GET['hospital_id'] ?? $_SESSION['hospital_id'] ?? 1);
 
-    // Get the first form for this hospital
-    $stmt = $pdo->prepare("SELECT feedback_form_id FROM feedback_form WHERE hospital_id = ? LIMIT 1");
+    // Get the first form for this hospital consistently
+    $stmt = $pdo->prepare("SELECT feedback_form_id FROM feedback_form WHERE hospital_id = ? ORDER BY feedback_form_id ASC LIMIT 1");
     $stmt->execute([$hospitalId]);
     $formId = $stmt->fetchColumn();
 
@@ -67,7 +67,8 @@ try {
             'id' => (string)$row['yesno_question_id'],
             'label' => $row['question_en'],
             'tamilLabel' => $row['question_ta'],
-            'backgroundColor' => ($row['answer_for_no'] !== 'No') ? $row['answer_for_no'] : ''
+            'backgroundColor' => ($row['answer_for_no'] !== 'No') ? $row['answer_for_no'] : '',
+            'describeIssueTrigger' => $row['describe_issue_trigger'] ?? 'no'
         ];
     }
 
@@ -97,7 +98,14 @@ try {
         $branding['contactNumber'] = $hospitalInfo['mobile'] ?: '';
         $branding['email'] = $hospitalInfo['email'] ?: '';
         if (!empty($hospitalInfo['logo'])) {
-            $branding['logoUrl'] = '../backend/uploads/' . $hospitalInfo['logo'];
+            $logo = $hospitalInfo['logo'];
+            if (strpos($logo, 'http') === 0 || strpos($logo, 'data:image/') === 0) {
+                // If it's a Supabase bucket URL or inline base64
+                $branding['logoUrl'] = $logo;
+            } else {
+                // Legacy local file
+                $branding['logoUrl'] = '../api/backend/uploads/' . $logo;
+            }
         }
     }
 

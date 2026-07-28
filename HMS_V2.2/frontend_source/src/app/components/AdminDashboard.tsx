@@ -45,6 +45,7 @@ interface Question {
   category?: string;
   backgroundColor?: string;
   icon?: string;
+  describeIssueTrigger?: string;
 }
 
 interface FeedbackResponse {
@@ -87,6 +88,217 @@ interface AdminDashboardProps {
   onLogout: () => void;
   onBrandingUpdate: (branding: BrandingSettings) => void;
   currentBranding: BrandingSettings;
+}
+
+const presetColors = [
+  '#fef3c7', '#fce7f3', '#ede9fe', '#dbeafe', '#dcfce7', '#ffedd5', '#f0fdfa', '#f1f5f9',
+  '#fde68a', '#fbcfe8', '#c4b5fd', '#93c5fd', '#86efac', '#fdba74', '#5eead4', '#cbd5e1'
+];
+
+const getCategoryColor = (category?: string) => {
+  const colors: Record<string, string> = {
+    reception: 'border-l-[#3b82f6]',
+    admission: 'border-l-[#0D9488]',
+    billing: 'border-l-[#8b5cf6]',
+    doctor: 'border-l-[#0D9488]',
+    nursing: 'border-l-[#10b981]',
+    pharmacy: 'border-l-[#f59e0b]',
+    lab: 'border-l-[#6366f1]',
+    insurance: 'border-l-[#0ea5e9]',
+    food: 'border-l-[#f97316]',
+    physiotherapy: 'border-l-[#ec4899]',
+    bloodbank: 'border-l-[#ef4444]',
+    cleanliness: 'border-l-[#84cc16]',
+    overall: 'border-l-[#a855f7]'
+  };
+  return colors[category || ''] || 'border-l-gray-300';
+};
+
+const getCategoryIcon = (category?: string) => {
+  const icons: Record<string, any> = {
+    reception: <Building2 className="w-6 h-6 text-teal-600" />,
+    admission: <UserCircle className="w-6 h-6 text-teal-600" />,
+    billing: <CreditCard className="w-6 h-6 text-teal-600" />,
+    doctor: <Stethoscope className="w-6 h-6 text-teal-600" />,
+    nursing: <Users className="w-6 h-6 text-teal-600" />,
+    pharmacy: <Pill className="w-6 h-6 text-teal-600" />,
+    lab: <Activity className="w-6 h-6 text-teal-600" />,
+    insurance: <Shield className="w-6 h-6 text-teal-600" />,
+    food: <Utensils className="w-6 h-6 text-teal-600" />,
+    physiotherapy: <HeartPulse className="w-6 h-6 text-teal-600" />,
+    bloodbank: <Droplet className="w-6 h-6 text-teal-600" />,
+    cleanliness: <Sparkles className="w-6 h-6 text-teal-600" />,
+    overall: <Star className="w-6 h-6 text-teal-600" />
+  };
+  return icons[category || ''] || <Smile className="w-6 h-6 text-teal-600" />;
+};
+
+interface SortableQuestionCardProps {
+  question: Question;
+  handleEditQuestion: (q: Question) => void;
+  handleDeleteQuestion: (id: string) => void;
+  questions: Question[];
+  setQuestions: (q: Question[]) => void;
+  showColorPicker: string | null;
+  setShowColorPicker: (id: string | null) => void;
+}
+
+function SortableQuestionCard({
+  question,
+  handleEditQuestion,
+  handleDeleteQuestion,
+  questions,
+  setQuestions,
+  showColorPicker,
+  setShowColorPicker
+}: SortableQuestionCardProps) {
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    transform,
+    transition,
+    isDragging,
+  } = useSortable({ id: question.id });
+
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    opacity: isDragging ? 0.9 : 1,
+    boxShadow: isDragging ? '0 8px 24px rgba(0,0,0,0.15)' : undefined,
+  };
+
+  const emojis = [
+    { emoji: '☹️', label: 'Very Bad', borderColor: 'border-red-300' },
+    { emoji: '😟', label: 'Poor', borderColor: 'border-orange-300' },
+    { emoji: '😐', label: 'Average', borderColor: 'border-yellow-300' },
+    { emoji: '😊', label: 'Good', borderColor: 'border-lime-300' },
+    { emoji: '😄', label: 'Excellent', borderColor: 'border-green-300' },
+  ];
+
+  return (
+    <div
+      ref={setNodeRef}
+      style={style}
+      className={`border-l-4 ${getCategoryColor(question.category)} bg-white border border-gray-200 rounded-2xl p-5 shadow-sm hover:shadow-lg transition-all ${question.backgroundColor || ''}`}
+    >
+      <div className="flex items-start gap-3 mb-4">
+        <div {...attributes} {...listeners} className="cursor-grab active:cursor-grabbing mt-1">
+          <GripVertical className="w-5 h-5 text-gray-400" />
+        </div>
+        <div className="flex-1">
+          <div className="flex items-start gap-3">
+            <div className="mt-1">{getCategoryIcon(question.category)}</div>
+            <div className="flex-1">
+              <h4 className="font-bold text-[15px] text-[#1a1a2e] leading-tight">{question.label}</h4>
+              <p className="text-[13px] text-gray-600 mt-0.5">{question.tamilLabel}</p>
+            </div>
+          </div>
+        </div>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={() => handleEditQuestion(question)}
+            className="p-2 hover:bg-teal-50 rounded-lg transition-colors"
+          >
+            <Pencil className="w-4 h-4 text-teal-600" />
+          </button>
+          <button
+            onClick={() => handleDeleteQuestion(question.id)}
+            className="p-2 hover:bg-red-50 rounded-lg transition-colors"
+          >
+            <Trash2 className="w-4 h-4 text-red-600" />
+          </button>
+        </div>
+      </div>
+
+      <div className="mb-4 px-8">
+        <p className="text-xs font-semibold text-gray-500 mb-2 uppercase tracking-wide">Live Preview</p>
+        {question.ratingMode === 'star' ? (
+          <div className="flex items-center gap-2 px-4 py-3 bg-white rounded-xl shadow-sm border border-gray-100">
+            {[1, 2, 3, 4, 5].map((star) => (
+              <Star key={star} className="w-10 h-10 text-gray-300" />
+            ))}
+          </div>
+        ) : (
+          <div className="grid grid-cols-5 gap-1.5">
+            {emojis.map((item, idx) => (
+              <div
+                key={idx}
+                className={`flex flex-col items-center justify-center p-2 rounded-xl border-2 ${item.borderColor} bg-white shadow-sm`}
+              >
+                <div className="text-2xl">{item.emoji}</div>
+                <span className="text-[9px] font-bold text-gray-700 text-center leading-tight mt-1">
+                  {item.label}
+                </span>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+
+      <div className="flex items-center gap-6 flex-wrap">
+        <div className="flex items-center gap-2">
+          <label className="text-sm text-gray-600 font-medium">Rating Mode:</label>
+          <select
+            value={question.ratingMode}
+            onChange={(e) => {
+              const updatedQuestions = questions.map(q =>
+                q.id === question.id ? { ...q, ratingMode: e.target.value as 'emoji' | 'star' } : q
+              );
+              setQuestions(updatedQuestions);
+            }}
+            className="px-3 py-1.5 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-teal-500 focus:border-transparent outline-none"
+          >
+            <option value="emoji">Emoji Rating</option>
+            <option value="star">Star Rating</option>
+          </select>
+        </div>
+
+        <div className="flex items-center gap-2 relative">
+          <label className="text-sm text-gray-600 font-medium">Card Color:</label>
+          <div className="relative">
+            <button
+              onClick={() => setShowColorPicker(showColorPicker === question.id ? null : question.id)}
+              className="w-7 h-7 rounded-md border-[1.5px] border-gray-300 shadow-sm hover:shadow-md transition-all"
+              style={{ backgroundColor: question.backgroundColor || '#ffffff' }}
+            />
+            {showColorPicker === question.id && (
+              <div className="absolute top-10 right-0 z-50 w-52 bg-white rounded-xl shadow-2xl border border-gray-200 p-3">
+                <p className="text-xs font-semibold text-gray-700 mb-2">Select Color</p>
+                <div className="grid grid-cols-8 gap-1.5 mb-3">
+                  {presetColors.map((color) => (
+                    <button
+                      key={color}
+                      onClick={() => {
+                        const updatedQuestions = questions.map(q =>
+                          q.id === question.id ? { ...q, backgroundColor: color } : q
+                        );
+                        setQuestions(updatedQuestions);
+                      }}
+                      className="w-6 h-6 rounded border border-gray-200 hover:scale-110 transition-transform"
+                      style={{ backgroundColor: color }}
+                    />
+                  ))}
+                </div>
+                <button
+                  onClick={() => {
+                    const updatedQuestions = questions.map(q =>
+                      q.id === question.id ? { ...q, backgroundColor: undefined } : q
+                    );
+                    setQuestions(updatedQuestions);
+                    setShowColorPicker(null);
+                  }}
+                  className="text-xs text-teal-600 hover:text-teal-700 font-medium"
+                >
+                  Reset to White
+                </button>
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
 }
 
 export function AdminDashboard({ onClose, onLogout, onBrandingUpdate, currentBranding }: AdminDashboardProps) {
@@ -138,6 +350,7 @@ export function AdminDashboard({ onClose, onLogout, onBrandingUpdate, currentBra
   const [officeUseModalData, setOfficeUseModalData] = useState<OfficeUse>({ reviewOfComplaint: '', dateOfReview: '', correctiveAction: '', preventiveAction: '', inchargeName: '' });
   const [layoutMode, setLayoutMode] = useState<'2-column' | '1-column'>('2-column');
   const [yesNoLayoutMode, setYesNoLayoutMode] = useState<'2-column' | '1-column'>('2-column');
+  const [previewAnswers, setPreviewAnswers] = useState<Record<string, boolean | null>>({});
   const [combinePages, setCombinePages] = useState<boolean>(false);
   const [showColorPicker, setShowColorPicker] = useState<string | null>(null);
 
@@ -307,7 +520,7 @@ export function AdminDashboard({ onClose, onLogout, onBrandingUpdate, currentBra
                 address: data.hospital.address || '123 Health Street, Chennai - 600001',
                 contactNumber: data.hospital.contactNumber || '+91 44 1234 5678',
                 email: data.hospital.email || 'contact@apollo.com',
-                logoUrl: data.hospital.logoUrl || ''
+                logo: data.hospital.logoUrl || ''
               });
             }
             
@@ -360,9 +573,7 @@ export function AdminDashboard({ onClose, onLogout, onBrandingUpdate, currentBra
     { id: 'overview' as SidebarItem, icon: <Home className="w-5 h-5" />, label: 'Overview' },
     { id: 'responses' as SidebarItem, icon: <MessageSquare className="w-5 h-5" />, label: 'Feedback Responses' },
     { id: 'branding' as SidebarItem, icon: <Image className="w-5 h-5" />, label: 'Branding Settings' },
-    { id: 'form-builder' as SidebarItem, icon: <Layout className="w-5 h-5" />, label: 'Form Builder' },
-    { id: 'display' as SidebarItem, icon: <Settings className="w-5 h-5" />, label: 'Display Settings' },
-    { id: 'office-use' as SidebarItem, icon: <FileText className="w-5 h-5" />, label: 'Office Use Only' },
+    { id: 'form-builder' as SidebarItem, icon: <Layout className="w-5 h-5" />, label: 'Form Builder' }
   ];
 
   const handleLogoClick = () => {
@@ -448,44 +659,6 @@ export function AdminDashboard({ onClose, onLogout, onBrandingUpdate, currentBra
     toast.success('Question added successfully');
   };
 
-  const getCategoryColor = (category?: string) => {
-    const colors: Record<string, string> = {
-      reception: 'border-l-[#3b82f6]',
-      admission: 'border-l-[#0D9488]',
-      billing: 'border-l-[#8b5cf6]',
-      doctor: 'border-l-[#0D9488]',
-      nursing: 'border-l-[#10b981]',
-      pharmacy: 'border-l-[#f59e0b]',
-      lab: 'border-l-[#6366f1]',
-      insurance: 'border-l-[#0ea5e9]',
-      food: 'border-l-[#f97316]',
-      physiotherapy: 'border-l-[#ec4899]',
-      bloodbank: 'border-l-[#ef4444]',
-      cleanliness: 'border-l-[#84cc16]',
-      overall: 'border-l-[#a855f7]'
-    };
-    return colors[category || ''] || 'border-l-gray-300';
-  };
-
-  const getCategoryIcon = (category?: string) => {
-    const icons: Record<string, JSX.Element> = {
-      reception: <Building2 className="w-6 h-6 text-teal-600" />,
-      admission: <UserCircle className="w-6 h-6 text-teal-600" />,
-      billing: <CreditCard className="w-6 h-6 text-teal-600" />,
-      doctor: <Stethoscope className="w-6 h-6 text-teal-600" />,
-      nursing: <Users className="w-6 h-6 text-teal-600" />,
-      pharmacy: <Pill className="w-6 h-6 text-teal-600" />,
-      lab: <Activity className="w-6 h-6 text-teal-600" />,
-      insurance: <Shield className="w-6 h-6 text-teal-600" />,
-      food: <Utensils className="w-6 h-6 text-teal-600" />,
-      physiotherapy: <HeartPulse className="w-6 h-6 text-teal-600" />,
-      bloodbank: <Droplet className="w-6 h-6 text-teal-600" />,
-      cleanliness: <Sparkles className="w-6 h-6 text-teal-600" />,
-      overall: <Star className="w-6 h-6 text-teal-600" />
-    };
-    return icons[category || ''] || <Smile className="w-6 h-6 text-teal-600" />;
-  };
-
   const sensors = useSensors(
     useSensor(PointerSensor),
     useSensor(KeyboardSensor, {
@@ -504,165 +677,6 @@ export function AdminDashboard({ onClose, onLogout, onBrandingUpdate, currentBra
       });
     }
   };
-
-  const presetColors = [
-    '#fef3c7', '#fce7f3', '#ede9fe', '#dbeafe', '#dcfce7', '#ffedd5', '#f0fdfa', '#f1f5f9',
-    '#fde68a', '#fbcfe8', '#c4b5fd', '#93c5fd', '#86efac', '#fdba74', '#5eead4', '#cbd5e1'
-  ];
-
-  // Sortable Question Card Component
-  function SortableQuestionCard({ question }: { question: Question }) {
-    const {
-      attributes,
-      listeners,
-      setNodeRef,
-      transform,
-      transition,
-      isDragging,
-    } = useSortable({ id: question.id });
-
-    const style = {
-      transform: CSS.Transform.toString(transform),
-      transition,
-      opacity: isDragging ? 0.9 : 1,
-      boxShadow: isDragging ? '0 8px 24px rgba(0,0,0,0.15)' : undefined,
-    };
-
-    const emojis = [
-      { emoji: '☹️', label: 'Very Bad', borderColor: 'border-red-300' },
-      { emoji: '😟', label: 'Poor', borderColor: 'border-orange-300' },
-      { emoji: '😐', label: 'Average', borderColor: 'border-yellow-300' },
-      { emoji: '😊', label: 'Good', borderColor: 'border-lime-300' },
-      { emoji: '😄', label: 'Excellent', borderColor: 'border-green-300' },
-    ];
-
-    return (
-      <div
-        ref={setNodeRef}
-        style={style}
-        className={`border-l-4 ${getCategoryColor(question.category)} bg-white border border-gray-200 rounded-2xl p-5 shadow-sm hover:shadow-lg transition-all ${question.backgroundColor || ''}`}
-      >
-        {/* Top Row - Icon, Title, Actions */}
-        <div className="flex items-start gap-3 mb-4">
-          <div {...attributes} {...listeners} className="cursor-grab active:cursor-grabbing mt-1">
-            <GripVertical className="w-5 h-5 text-gray-400" />
-          </div>
-          <div className="flex-1">
-            <div className="flex items-start gap-3">
-              <div className="mt-1">{getCategoryIcon(question.category)}</div>
-              <div className="flex-1">
-                <h4 className="font-bold text-[15px] text-[#1a1a2e] leading-tight">{question.label}</h4>
-                <p className="text-[13px] text-gray-600 mt-0.5">{question.tamilLabel}</p>
-              </div>
-            </div>
-          </div>
-          <div className="flex items-center gap-2">
-            <button
-              onClick={() => handleEditQuestion(question)}
-              className="p-2 hover:bg-teal-50 rounded-lg transition-colors"
-            >
-              <Pencil className="w-4 h-4 text-teal-600" />
-            </button>
-            <button
-              onClick={() => handleDeleteQuestion(question.id)}
-              className="p-2 hover:bg-red-50 rounded-lg transition-colors"
-            >
-              <Trash2 className="w-4 h-4 text-red-600" />
-            </button>
-          </div>
-        </div>
-
-        {/* Live Preview Row */}
-        <div className="mb-4 px-8">
-          <p className="text-xs font-semibold text-gray-500 mb-2 uppercase tracking-wide">Live Preview</p>
-          {question.ratingMode === 'star' ? (
-            <div className="flex items-center gap-2 px-4 py-3 bg-white rounded-xl shadow-sm border border-gray-100">
-              {[1, 2, 3, 4, 5].map((star) => (
-                <Star key={star} className="w-10 h-10 text-gray-300" />
-              ))}
-            </div>
-          ) : (
-            <div className="grid grid-cols-5 gap-1.5">
-              {emojis.map((item, idx) => (
-                <div
-                  key={idx}
-                  className={`flex flex-col items-center justify-center p-2 rounded-xl border-2 ${item.borderColor} bg-white shadow-sm`}
-                >
-                  <div className="text-2xl">{item.emoji}</div>
-                  <span className="text-[9px] font-bold text-gray-700 text-center leading-tight mt-1">
-                    {item.label}
-                  </span>
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
-
-        {/* Bottom Row - Rating Mode & Color Picker */}
-        <div className="flex items-center gap-6 flex-wrap">
-          <div className="flex items-center gap-2">
-            <label className="text-sm text-gray-600 font-medium">Rating Mode:</label>
-            <select
-              value={question.ratingMode}
-              onChange={(e) => {
-                const updatedQuestions = questions.map(q =>
-                  q.id === question.id ? { ...q, ratingMode: e.target.value as 'emoji' | 'star' } : q
-                );
-                setQuestions(updatedQuestions);
-              }}
-              className="px-3 py-1.5 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-teal-500 focus:border-transparent outline-none"
-            >
-              <option value="emoji">Emoji Rating</option>
-              <option value="star">Star Rating</option>
-            </select>
-          </div>
-
-          <div className="flex items-center gap-2 relative">
-            <label className="text-sm text-gray-600 font-medium">Card Color:</label>
-            <div className="relative">
-              <button
-                onClick={() => setShowColorPicker(showColorPicker === question.id ? null : question.id)}
-                className="w-7 h-7 rounded-md border-[1.5px] border-gray-300 shadow-sm hover:shadow-md transition-all"
-                style={{ backgroundColor: question.backgroundColor || '#ffffff' }}
-              />
-              {showColorPicker === question.id && (
-                <div className="absolute top-10 right-0 z-50 w-52 bg-white rounded-xl shadow-2xl border border-gray-200 p-3">
-                  <p className="text-xs font-semibold text-gray-700 mb-2">Select Color</p>
-                  <div className="grid grid-cols-8 gap-1.5 mb-3">
-                    {presetColors.map((color) => (
-                      <button
-                        key={color}
-                        onClick={() => {
-                          const updatedQuestions = questions.map(q =>
-                            q.id === question.id ? { ...q, backgroundColor: color } : q
-                          );
-                          setQuestions(updatedQuestions);
-                        }}
-                        className="w-6 h-6 rounded border border-gray-200 hover:scale-110 transition-transform"
-                        style={{ backgroundColor: color }}
-                      />
-                    ))}
-                  </div>
-                  <button
-                    onClick={() => {
-                      const updatedQuestions = questions.map(q =>
-                        q.id === question.id ? { ...q, backgroundColor: undefined } : q
-                      );
-                      setQuestions(updatedQuestions);
-                      setShowColorPicker(null);
-                    }}
-                    className="text-xs text-teal-600 hover:text-teal-700 font-medium"
-                  >
-                    Reset to White
-                  </button>
-                </div>
-              )}
-            </div>
-          </div>
-        </div>
-      </div>
-    );
-  }
 
   const [isSavingQuestions, setIsSavingQuestions] = useState(false);
 
@@ -1198,7 +1212,16 @@ export function AdminDashboard({ onClose, onLogout, onBrandingUpdate, currentBra
                         <SortableContext items={questions.map(q => q.id)} strategy={verticalListSortingStrategy}>
                           <div className={layoutMode === '2-column' ? 'grid grid-cols-1 md:grid-cols-2 gap-4 pb-20' : 'space-y-4 pb-20'}>
                             {questions.map((question) => (
-                              <SortableQuestionCard key={question.id} question={question} />
+                              <SortableQuestionCard 
+                                key={question.id} 
+                                question={question}
+                                handleEditQuestion={handleEditQuestion}
+                                handleDeleteQuestion={handleDeleteQuestion}
+                                questions={questions}
+                                setQuestions={setQuestions}
+                                showColorPicker={showColorPicker}
+                                setShowColorPicker={setShowColorPicker}
+                              />
                             ))}
                           </div>
                         </SortableContext>
@@ -1211,31 +1234,6 @@ export function AdminDashboard({ onClose, onLogout, onBrandingUpdate, currentBra
                       <div className="flex items-center justify-between mb-6">
                         <h3 className="text-xl font-bold text-gray-900">Questionary Page Questions</h3>
                         <div className="flex items-center gap-3">
-                          {/* Layout Toggle */}
-                          <div className="flex items-center gap-2 bg-gray-100 rounded-lg p-1">
-                            <button
-                              onClick={() => setYesNoLayoutMode('2-column')}
-                              className={`flex items-center gap-2 px-3 py-2 rounded-md font-semibold text-xs transition-all ${
-                                yesNoLayoutMode === '2-column'
-                                  ? 'bg-teal-600 text-white'
-                                  : 'text-gray-600 hover:bg-gray-200'
-                              }`}
-                            >
-                              <Columns2 className="w-4 h-4" />
-                              2 Column
-                            </button>
-                            <button
-                              onClick={() => setYesNoLayoutMode('1-column')}
-                              className={`flex items-center gap-2 px-3 py-2 rounded-md font-semibold text-xs transition-all ${
-                                yesNoLayoutMode === '1-column'
-                                  ? 'bg-teal-600 text-white'
-                                  : 'text-gray-600 hover:bg-gray-200'
-                              }`}
-                            >
-                              <RectangleVertical className="w-4 h-4" />
-                              1 Column
-                            </button>
-                          </div>
                           <button
                             onClick={() => setShowAddYesNoQuestion(true)}
                             className="flex items-center gap-2 px-4 py-2 bg-teal-600 text-white rounded-lg hover:bg-teal-700 transition-all shadow-md"
@@ -1270,68 +1268,46 @@ export function AdminDashboard({ onClose, onLogout, onBrandingUpdate, currentBra
                             {/* Button Preview Row */}
                             <div className="mb-4 px-8">
                               <p className="text-xs font-semibold text-gray-500 mb-2 uppercase tracking-wide">Live Preview</p>
-                              <div className="grid grid-cols-2 gap-3">
-                                <div className="flex items-center justify-center p-3 rounded-xl border-[1.5px] border-[#93c5fd] bg-white shadow-sm">
+                              <div className="grid grid-cols-2 gap-3 mb-2">
+                                <div onClick={() => setPreviewAnswers({ ...previewAnswers, [question.id]: false })} className={`cursor-pointer flex items-center justify-center p-3 rounded-xl border-[1.5px] border-[#93c5fd] shadow-sm transition-all ${previewAnswers[question.id] === false ? 'bg-teal-50 border-teal-500' : 'bg-white hover:bg-gray-50'}`}>
                                   <span className="text-sm font-bold text-[#374151]">No</span>
                                 </div>
-                                <div className="flex items-center justify-center p-3 rounded-xl border-[1.5px] border-[#93c5fd] bg-white shadow-sm">
+                                <div onClick={() => setPreviewAnswers({ ...previewAnswers, [question.id]: true })} className={`cursor-pointer flex items-center justify-center p-3 rounded-xl border-[1.5px] border-[#93c5fd] shadow-sm transition-all ${previewAnswers[question.id] === true ? 'bg-teal-50 border-teal-500' : 'bg-white hover:bg-gray-50'}`}>
                                   <span className="text-sm font-bold text-[#374151]">Yes</span>
                                 </div>
                               </div>
+                              {(( (question.describeIssueTrigger || 'no') === 'no' && previewAnswers[question.id] === false) ||
+                                (question.describeIssueTrigger === 'yes' && previewAnswers[question.id] === true) ||
+                                (question.describeIssueTrigger === 'both' && previewAnswers[question.id] !== undefined && previewAnswers[question.id] !== null)) && (
+                                <div className="animate-in fade-in slide-in-from-top-2">
+                                  <textarea
+                                    className="w-full mt-2 px-3 py-2 border border-gray-300 rounded-lg text-sm bg-gray-50 outline-none"
+                                    rows={2}
+                                    placeholder="Please describe the issue..."
+                                    disabled
+                                  />
+                                </div>
+                              )}
                             </div>
 
                             {/* Bottom Row */}
                             <div className="flex items-center gap-6 flex-wrap">
                               <div className="flex items-center gap-2">
-                                <label className="text-sm text-gray-600 font-medium">Alignment:</label>
-                                <select className="px-3 py-1.5 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-teal-500 focus:border-transparent outline-none">
-                                  <option>Horizontal</option>
-                                  <option>Vertical</option>
-                                  <option>Left</option>
-                                  <option>Right</option>
+                                <label className="text-sm text-gray-600 font-medium">Show 'Describe Issue' on:</label>
+                                <select 
+                                  value={question.describeIssueTrigger || 'no'} 
+                                  onChange={(e) => {
+                                      const updatedList = yesNoQuestions.map(q => 
+                                          q.id === question.id ? { ...q, describeIssueTrigger: e.target.value } : q
+                                      );
+                                      setYesNoQuestions(updatedList);
+                                  }}
+                                  className="px-3 py-1.5 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-teal-500 focus:border-transparent outline-none">
+                                  <option value="no">No</option>
+                                  <option value="yes">Yes</option>
+                                  <option value="both">Both</option>
+                                  <option value="never">Never</option>
                                 </select>
-                              </div>
-                              <div className="flex items-center gap-2 relative">
-                                <label className="text-sm text-gray-600 font-medium">Card Color:</label>
-                                <div className="relative">
-                                  <button
-                                    onClick={() => setShowColorPicker(showColorPicker === question.id ? null : question.id)}
-                                    className="w-7 h-7 rounded-md border-[1.5px] border-gray-300 shadow-sm hover:shadow-md transition-all"
-                                    style={{ backgroundColor: question.backgroundColor || '#ffffff' }}
-                                  />
-                                  {showColorPicker === question.id && (
-                                    <div className="absolute bottom-10 right-0 z-50 w-52 bg-white rounded-xl shadow-2xl border border-gray-200 p-3">
-                                      <p className="text-xs font-semibold text-gray-700 mb-2">Select Color</p>
-                                      <div className="grid grid-cols-8 gap-1.5 mb-3">
-                                        {presetColors.map((color) => (
-                                          <button
-                                            key={color}
-                                            onClick={() => {
-                                              const updatedQuestions = yesNoQuestions.map(q =>
-                                                q.id === question.id ? { ...q, backgroundColor: color } : q
-                                              );
-                                              setYesNoQuestions(updatedQuestions);
-                                            }}
-                                            className="w-6 h-6 rounded border border-gray-200 hover:scale-110 transition-transform"
-                                            style={{ backgroundColor: color }}
-                                          />
-                                        ))}
-                                      </div>
-                                      <button
-                                        onClick={() => {
-                                          const updatedQuestions = yesNoQuestions.map(q =>
-                                            q.id === question.id ? { ...q, backgroundColor: undefined } : q
-                                          );
-                                          setYesNoQuestions(updatedQuestions);
-                                          setShowColorPicker(null);
-                                        }}
-                                        className="text-xs text-teal-600 hover:text-teal-700 font-medium"
-                                      >
-                                        Reset to White
-                                      </button>
-                                    </div>
-                                  )}
-                                </div>
                               </div>
                             </div>
                           </div>
@@ -1594,160 +1570,7 @@ export function AdminDashboard({ onClose, onLogout, onBrandingUpdate, currentBra
               )}
               </>
             )}
-            {/* Office Use Only */}
-            {activeSection === 'office-use' && (
-              <div className="pb-24">
-                <h2 className="text-3xl font-bold text-gray-900 mb-2">Office Use Only</h2>
-                <p className="text-gray-500 mb-8">Internal administrative review form — restricted access</p>
 
-                <div className="bg-white rounded-2xl shadow-md p-8 md:p-12 border-l-4 border-red-500">
-                  <div className="mb-8 pb-6 border-b-2 border-gray-200">
-                    <h3 className="text-2xl font-bold text-gray-900 text-center tracking-wide">
-                      FOR OFFICE USE ONLY
-                    </h3>
-                  </div>
-
-                  <div className="max-w-3xl mx-auto space-y-8">
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-3">
-                        Review Of the Complaint
-                      </label>
-                      <textarea
-                        value={officeUse.reviewOfComplaint}
-                        onChange={(e) => setOfficeUse({ ...officeUse, reviewOfComplaint: e.target.value })}
-                        className="w-full px-0 py-2 border-0 border-b-2 border-gray-300 focus:border-teal-500 focus:ring-0 outline-none transition-all resize-none bg-transparent"
-                        rows={3}
-                        placeholder="Enter review details..."
-                      />
-                    </div>
-
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-3">
-                        Date of Review
-                      </label>
-                      <input
-                        type="date"
-                        value={officeUse.dateOfReview}
-                        onChange={(e) => setOfficeUse({ ...officeUse, dateOfReview: e.target.value })}
-                        className="w-full px-0 py-2 border-0 border-b-2 border-gray-300 focus:border-teal-500 focus:ring-0 outline-none transition-all bg-transparent"
-                      />
-                    </div>
-
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-3">
-                        Corrective Action
-                      </label>
-                      <textarea
-                        value={officeUse.correctiveAction}
-                        onChange={(e) => setOfficeUse({ ...officeUse, correctiveAction: e.target.value })}
-                        className="w-full px-0 py-2 border-0 border-b-2 border-gray-300 focus:border-teal-500 focus:ring-0 outline-none transition-all resize-none bg-transparent"
-                        rows={3}
-                        placeholder="Enter corrective action..."
-                      />
-                    </div>
-
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-3">
-                        Preventive Action
-                      </label>
-                      <textarea
-                        value={officeUse.preventiveAction}
-                        onChange={(e) => setOfficeUse({ ...officeUse, preventiveAction: e.target.value })}
-                        className="w-full px-0 py-2 border-0 border-b-2 border-gray-300 focus:border-teal-500 focus:ring-0 outline-none transition-all resize-none bg-transparent"
-                        rows={3}
-                        placeholder="Enter preventive action..."
-                      />
-                    </div>
-
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-3">
-                        Incharge Name <span className="text-gray-500">/ பொறுப்பாளர் பெயர்</span>
-                      </label>
-                      <input
-                        type="text"
-                        value={officeUse.inchargeName}
-                        onChange={(e) => setOfficeUse({ ...officeUse, inchargeName: e.target.value })}
-                        className="w-full px-0 py-2 border-0 border-b-2 border-gray-300 focus:border-teal-500 focus:ring-0 outline-none transition-all bg-transparent"
-                        placeholder="Enter incharge name"
-                      />
-                    </div>
-
-                    <div className="pt-6 border-t border-gray-100">
-                      <button
-                        onClick={() => {
-                          toast.success('Office Use record saved successfully');
-                        }}
-                        className="flex items-center gap-2 px-6 py-3 bg-teal-600 text-white rounded-lg hover:bg-teal-700 transition-all shadow-md"
-                      >
-                        <Save className="w-4 h-4" />
-                        Save Record
-                      </button>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            )}
-
-            {/* Display Settings */}
-            {activeSection === 'display' && (
-              <div className="pb-24">
-                <h2 className="text-3xl font-bold text-gray-900 mb-8">Display Settings</h2>
-                <div className="bg-white rounded-2xl shadow-md p-8 border-l-4 border-purple-500">
-                  <div className="space-y-6">
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">Primary Theme Color</label>
-                      <input
-                        type="color"
-                        value={themeColor}
-                        onChange={(e) => setThemeColor(e.target.value)}
-                        className="w-20 h-12 rounded-lg cursor-pointer"
-                      />
-                    </div>
-
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">Font Size</label>
-                      <select 
-                        value={fontSize}
-                        onChange={(e) => setFontSize(e.target.value)}
-                        className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-transparent outline-none"
-                      >
-                        <option value="Small">Small</option>
-                        <option value="Normal">Normal</option>
-                        <option value="Large">Large</option>
-                        <option value="Extra Large">Extra Large</option>
-                      </select>
-                    </div>
-
-                    <div className="flex items-center justify-between p-6 bg-gray-50 rounded-xl border border-gray-200">
-                      <div>
-                        <p className="font-semibold text-gray-900">Show Page Title Labels</p>
-                        <p className="text-sm text-gray-600 mt-1">Display step titles at the top of each page</p>
-                      </div>
-                      <label className="relative inline-flex items-center cursor-pointer">
-                        <input 
-                          type="checkbox" 
-                          checked={showPageTitleLabels} 
-                          onChange={(e) => setShowPageTitleLabels(e.target.checked)} 
-                          className="sr-only peer" 
-                        />
-                        <div className="w-11 h-6 bg-gray-300 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-teal-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-teal-600"></div>
-                      </label>
-                    </div>
-
-                    <div className="pt-6">
-                      <button 
-                        onClick={handleSaveQuestions}
-                        disabled={isSavingQuestions}
-                        className={`flex items-center gap-2 px-6 py-3 bg-teal-600 text-white rounded-lg transition-all shadow-md ${isSavingQuestions ? 'opacity-70 cursor-not-allowed' : 'hover:bg-teal-700 hover:scale-105'}`}
-                      >
-                        <Save className="w-4 h-4" />
-                        {isSavingQuestions ? 'Saving...' : 'Save Changes'}
-                      </button>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            )}
           </div>
         </div>
       </div>

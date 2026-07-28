@@ -72,7 +72,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 <title>Admin Login</title>
 <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Open+Sans:wght@400;600;700&display=swap">
-<link rel="stylesheet" href="../../frontend/assets/css/style.css">
+<link rel="stylesheet" href="../../../frontend/assets/css/style.css">
 </head>
 <body class="d-flex align-items-center" style="min-height:100vh;">
 <div class="container">

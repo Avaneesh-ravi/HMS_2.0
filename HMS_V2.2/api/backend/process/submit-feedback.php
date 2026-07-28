@@ -13,20 +13,75 @@ if (isset($_POST['first_name']) && isset($_POST['last_name'])) {
     $_POST['full_name'] = trim($_POST['first_name'] . ' ' . $_POST['last_name']);
 }
 
+header('Content-Type: application/json');
+
 // ---- Basic server-side validation ----
 $errors = [];
-foreach (['uhid', 'full_name', 'age', 'gender', 'mobile_number', 'visit_type'] as $req) {
-    if (empty($_POST[$req])) {
-        $errors[] = ucfirst(str_replace('_', ' ', $req)) . ' is required.';
+
+// Name constraints
+$firstName = $_POST['first_name'] ?? '';
+if (empty($firstName) || !preg_match("/^[a-zA-Z\s.'-]+$/", $firstName) || strlen($firstName) < 2 || strlen($firstName) > 100) {
+    $errors[] = 'Valid First Name (2-100 characters, letters only) is required.';
+}
+
+// Mobile
+$mobile = $_POST['mobile_number'] ?? '';
+$mobilePlain = preg_replace('/\D/', '', $mobile);
+if (strpos($mobilePlain, '91') === 0 && strlen($mobilePlain) > 10) {
+    $mobilePlain = substr($mobilePlain, 2);
+}
+if (strlen($mobilePlain) !== 10) {
+    $errors[] = 'Mobile number must be exactly 10 digits.';
+}
+
+// Email
+if (!empty($_POST['email'])) {
+    if (!filter_var($_POST['email'], FILTER_VALIDATE_EMAIL)) {
+        $errors[] = 'A valid email address is required.';
+    } elseif (strlen($_POST['email']) > 100) {
+        $errors[] = 'Email must not exceed 100 characters.';
     }
 }
+
+// Address
+$address = $_POST['address'] ?? '';
+if (empty($address) || strlen($address) < 5 || strlen($address) > 200) {
+    $errors[] = 'Address must be between 5 and 200 characters.';
+}
+
+// Age
+$age = (int)($_POST['age'] ?? 0);
+if ($age <= 0 || $age > 130) {
+    $errors[] = 'Valid Age is required.';
+}
+
+// Visit Dates
+$today = date('Y-m-d');
+$visitType = $_POST['visit_type'] ?? 'OP';
+if ($visitType === 'OP') {
+    if (!empty($_POST['op_date']) && $_POST['op_date'] > $today) {
+        $errors[] = 'OP Date cannot be in the future.';
+    }
+} else {
+    foreach (['ip_date' => 'IP Date', 'admission_date' => 'Date of Admission', 'discharge_date' => 'Date of Discharge'] as $field => $label) {
+        if (!empty($_POST[$field]) && $_POST[$field] > $today) {
+            $errors[] = "$label cannot be in the future.";
+        }
+    }
+    if (!empty($_POST['admission_date']) && !empty($_POST['discharge_date'])) {
+        if ($_POST['discharge_date'] < $_POST['admission_date']) {
+            $errors[] = 'Date of Discharge cannot be earlier than Date of Admission.';
+        }
+    }
+}
+
 if (empty($_POST['signature_confirmed'])) {
     $errors[] = 'Please confirm the declaration checkbox before submitting.';
 }
 
 if (!empty($errors)) {
-    // In production, redirect back with flash-messages; kept simple here.
-    die('<h3>Please correct the following and go back:</h3><ul><li>' . implode('</li><li>', array_map('clean', $errors)) . '</li></ul><a href="../feedback-form.php">&larr; Back to form</a>');
+    echo json_encode(['success' => false, 'errors' => $errors]);
+    exit;
 }
 
 try {
@@ -47,7 +102,8 @@ try {
         'state'            => $_POST['state'] ?? 'Tamil Nadu',
         'country'          => $_POST['country'] ?? 'India',
         'visit_type'       => clean($_POST['visit_type']),
-        'visit_uhid'       => $_POST['visit_uhid'] ?? '',
+        'op_id'            => $_POST['op_id'] ?? '',
+        'ip_id'            => $_POST['ip_id'] ?? '',
         'admission_date'   => $_POST['admission_date'] ?? '',
         'discharge_date'   => $_POST['discharge_date'] ?? '',
     ];
@@ -140,8 +196,8 @@ try {
 
     $pdo->commit();
 } catch (Exception $e) {
-    $pdo->rollBack();
-    die('Something went wrong while saving your feedback. Please try again. (' . $e->getMessage() . ')');
-}
 
-redirect('../../frontend/thank-you.php');
+    $pdo->rollBack();
+    echo json_encode(['success' => false, 'errors' => ['Database error: ' . $e->getMessage()]]);
+    exit;
+}

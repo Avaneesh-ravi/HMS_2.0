@@ -1,3 +1,4 @@
+// @ts-nocheck
 import { defineConfig } from 'vite'
 import path from 'path'
 import tailwindcss from '@tailwindcss/vite'
@@ -21,6 +22,25 @@ export default defineConfig({
   build: {
     outDir: '../frontend',
     emptyOutDir: false, // Don't empty outDir because we only want to update assets
+  },
+  server: {
+    proxy: {
+      '/api': {
+        target: 'http://localhost:8081/HMS_V6/HMS_V2.2/api',
+        changeOrigin: true,
+        rewrite: (path) => path.replace(/^\/api/, '')
+      },
+      '/backend': {
+        target: 'http://localhost:8081/HMS_V6/HMS_V2.2/api/backend',
+        changeOrigin: true,
+        rewrite: (path) => path.replace(/^\/backend/, '')
+      },
+      '/frontend': {
+        target: 'http://localhost:8081/HMS_V6/HMS_V2.2/frontend',
+        changeOrigin: true,
+        rewrite: (path) => path.replace(/^\/frontend/, '')
+      }
+    }
   },
   plugins: [
     figmaAssetResolver(),

@@ -3,6 +3,17 @@ require_once __DIR__ . '/' . '../config/database.php';
 require_once __DIR__ . '/' . '../includes/functions.php';
 ensureSession();
 requireAdminLogin();
+
+$jsFiles = glob(__DIR__ . '/../../../frontend/assets/index-*.js');
+$cssFiles = glob(__DIR__ . '/../../../frontend/assets/index-*.css');
+if ($jsFiles) {
+    usort($jsFiles, function($a, $b) { return filemtime($b) - filemtime($a); });
+}
+if ($cssFiles) {
+    usort($cssFiles, function($a, $b) { return filemtime($b) - filemtime($a); });
+}
+$latestJs = !empty($jsFiles) ? basename($jsFiles[0]) : '';
+$latestCss = !empty($cssFiles) ? basename($cssFiles[0]) : '';
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -11,12 +22,28 @@ requireAdminLogin();
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Apollo Healthcare Center — Admin Dashboard</title>
     <meta name="robots" content="noindex, nofollow" />
-    <style>html, body { height: 100%; margin: 0; } #root { height: 100%; }</style>
+    <script>
+      window.ADMIN_HOSPITAL_ID = <?= json_encode((int)($_SESSION['hospital_id'] ?? 0)) ?>;
+    </script>
+    <style>html, body { height: 100%; margin: 0; } #root { height: 100%; }
+      #error-box { display: none; padding: 20px; background: #fff0f0; border: 1px solid red; color: red; position: fixed; z-index: 9999; top: 0; width: 100%; font-family: monospace; }
+    </style>
+    <script>
+      window.addEventListener('error', function(e) {
+        document.getElementById('error-box').style.display = 'block';
+        document.getElementById('error-box').innerHTML += e.message + '<br>' + e.filename + ':' + e.lineno + '<br>';
+      });
+      window.addEventListener('unhandledrejection', function(e) {
+        document.getElementById('error-box').style.display = 'block';
+        document.getElementById('error-box').innerHTML += e.reason + '<br>';
+      });
+    </script>
     
-    <script type="module" crossorigin src="../../frontend/assets/index-dyLmuNy2.js"></script>
-    <link rel="stylesheet" crossorigin href="../../frontend/assets/index-CQN_0eQV.css">
+    <script type="module" crossorigin src="../../../frontend/assets/<?= $latestJs ?>"></script>
+    <link rel="stylesheet" crossorigin href="../../../frontend/assets/<?= $latestCss ?>">
   </head>
   <body>
+    <div id="error-box"></div>
     <div id="root"></div>
   </body>
 </html>

@@ -14,6 +14,17 @@ if ($hospital_id > 0) {
         if ($name) $hospitalName = $name;
     } catch (Exception $e) {}
 }
+
+$jsFiles = glob(__DIR__ . '/../../frontend/assets/index-*.js');
+$cssFiles = glob(__DIR__ . '/../../frontend/assets/index-*.css');
+if ($jsFiles) {
+    usort($jsFiles, function($a, $b) { return filemtime($b) - filemtime($a); });
+}
+if ($cssFiles) {
+    usort($cssFiles, function($a, $b) { return filemtime($b) - filemtime($a); });
+}
+$latestJs = !empty($jsFiles) ? basename($jsFiles[0]) : '';
+$latestCss = !empty($cssFiles) ? basename($cssFiles[0]) : '';
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -25,8 +36,8 @@ if ($hospital_id > 0) {
     <meta name="robots" content="noindex, nofollow" />
     <style>html, body { height: 100%; margin: 0; } #root { height: 100%; }</style>
     
-    <script type="module" crossorigin src="./assets/index-dyLmuNy2.js"></script>
-    <link rel="stylesheet" crossorigin href="./assets/index-CQN_0eQV.css">
+    <script type="module" crossorigin src="./assets/<?= $latestJs ?>"></script>
+    <link rel="stylesheet" crossorigin href="./assets/<?= $latestCss ?>">
   </head>
   <body>
     <div id="root"></div>

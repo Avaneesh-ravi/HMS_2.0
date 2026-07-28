@@ -1,0 +1,8 @@
+.env
+.env.*
+!.env.example
+node_modules/
+vendor/
+backend/uploads/
+api/backend/uploads/
+payload.log

@@ -13,6 +13,7 @@ if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
 $input = json_decode(file_get_contents('php://input'), true) ?? $_POST;
 $email = trim($input['email'] ?? '');
 $password = $input['password'] ?? '';
+$requested_hospital = $input['hospital_id'] ?? null;
 
 if (empty($email) || empty($password)) {
     echo json_encode(['success' => false, 'message' => 'Email and password are required']);
@@ -50,6 +51,11 @@ try {
         $hAdmin = $stmt->fetch();
         
         if ($hAdmin) {
+            if ($requested_hospital && $hAdmin['hospital_id'] != $requested_hospital) {
+                echo json_encode(['success' => false, 'message' => 'Your administrator account is not registered to this healthcare center']);
+                exit;
+            }
+
             $isValid = str_starts_with($hAdmin['password_hash'], '$2y$') 
                 ? password_verify($password, $hAdmin['password_hash']) 
                 : hash('sha256', $password) === $hAdmin['password_hash'];
@@ -62,9 +68,10 @@ try {
                 $_SESSION['role']           = $hAdmin['role'];
                 $_SESSION['hospital_name']  = $hAdmin['hospital_name'];
                 
-                setcookie('hms_admin_auth', $_SESSION['admin_id'], time() + 86400, '/');
-                setcookie('hms_admin_token', md5($_SESSION['admin_id'] . 'secret_key_123'), time() + 86400, '/');
-                setcookie('hms_hospital_id', $_SESSION['hospital_id'], time() + 86400, '/');
+                setcookie('hms_admin_auth', (string)$_SESSION['admin_id'], time() + 86400, '/');
+                $secret = getenv('APP_SECRET') ?: 'secret_key_123';
+                setcookie('hms_admin_token', md5($_SESSION['admin_id'] . $secret), time() + 86400, '/');
+                setcookie('hms_hospital_id', (string)$_SESSION['hospital_id'], time() + 86400, '/');
             }
         }
     }

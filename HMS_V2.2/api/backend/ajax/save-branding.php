@@ -44,26 +44,56 @@ try {
     ];
 
     if (!empty($logoData) && strpos($logoData, 'data:image/') === 0) {
-        list($type, $logoData) = explode(';', $logoData);
-        list(, $logoData)      = explode(',', $logoData);
-        $logoData = base64_decode($logoData);
+        $base64String = $logoData; // keep original for fallback
+        list($type, $decodedLogoData) = explode(';', $logoData);
+        list(, $decodedLogoData)      = explode(',', $decodedLogoData);
+        $decodedLogoData = base64_decode($decodedLogoData);
         
-        // determine extension
         $ext = 'png';
         if (strpos($type, 'jpeg') !== false) $ext = 'jpg';
         else if (strpos($type, 'gif') !== false) $ext = 'gif';
         else if (strpos($type, 'svg') !== false) $ext = 'svg';
 
         $filename = 'logo_' . $hospitalId . '_' . time() . '.' . $ext;
-        $uploadPath = __DIR__ . '/../uploads/' . $filename;
         
-        if (!is_dir(__DIR__ . '/../uploads/')) {
-            mkdir(__DIR__ . '/../uploads/', 0777, true);
+        // Supabase Storage Migration
+        $supabaseUrl = getenv('SUPABASE_URL');
+        $supabaseKey = getenv('SUPABASE_SERVICE_ROLE_KEY');
+        $bucket = getenv('SUPABASE_BUCKET') ?: 'logos';
+
+        if (!empty($supabaseUrl) && !empty($supabaseKey)) {
+            $ch = curl_init();
+            curl_setopt($ch, CURLOPT_URL, "$supabaseUrl/storage/v1/object/$bucket/$filename");
+            curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+            curl_setopt($ch, CURLOPT_CUSTOMREQUEST, 'POST');
+            curl_setopt($ch, CURLOPT_POSTFIELDS, $decodedLogoData);
+            curl_setopt($ch, CURLOPT_HTTPHEADER, [
+                "Authorization: Bearer $supabaseKey",
+                "apikey: $supabaseKey",
+                "Content-Type: image/$ext"
+            ]);
+            $response = curl_exec($ch);
+            curl_close($ch);
+            
+            $publicUrl = "$supabaseUrl/storage/v1/object/public/$bucket/$filename";
+            $updateQuery .= ", logo = :logo";
+            $params[':logo'] = $publicUrl;
+        } else {
+            // Local fallback if Supabase credentials are missing (local testing)
+            if (getenv('VERCEL') || getenv('VERCEL_ENV')) {
+                // On stateless Vercel without Supabase keys, use Base64 inline database storage to prevent EROFS crash
+                $updateQuery .= ", logo = :logo";
+                $params[':logo'] = $base64String;
+            } else {
+                $uploadPath = __DIR__ . '/../uploads/' . $filename;
+                if (!is_dir(__DIR__ . '/../uploads/')) {
+                    mkdir(__DIR__ . '/../uploads/', 0777, true);
+                }
+                file_put_contents($uploadPath, $decodedLogoData);
+                $updateQuery .= ", logo = :logo";
+                $params[':logo'] = $filename;
+            }
         }
-        file_put_contents($uploadPath, $logoData);
-        
-        $updateQuery .= ", logo = :logo";
-        $params[':logo'] = $filename;
     }
 
     $updateQuery .= " WHERE hospital_id = :id";

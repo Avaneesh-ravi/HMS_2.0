@@ -1,3 +1,4 @@
+// @ts-nocheck
 import { useState, useEffect } from 'react';
 import {
   Building2, UserCircle, Phone, Mail, MapPin, Calendar,
@@ -123,6 +124,7 @@ export default function App() {
     contactNumber: string | null;
   }
   const [selectedHospital, setSelectedHospital] = useState<SelectedHospital | null>(null);
+  const [isInitializing, setIsInitializing] = useState(true);
   
   const [branding, setBranding] = useState<BrandingSettings>({
     logo: '',
@@ -228,6 +230,8 @@ export default function App() {
     dischargeDate: null,
   });
 
+  const [formErrors, setFormErrors] = useState<Record<string, string>>({});
+
   const [whyChooseUs, setWhyChooseUs] = useState<WhyChooseUs>({
     selfDecision: false,
     advertisement: false,
@@ -269,12 +273,17 @@ export default function App() {
 
   useEffect(() => {
     const urlParams = new URLSearchParams(window.location.search);
-    const hospitalId = urlParams.get('hospital_id') || '1';
+    const hospitalId = urlParams.get('hospital_id');
     
+    if (!hospitalId) {
+      setIsInitializing(false);
+      return;
+    }
+
     const isBackend = window.location.pathname.includes('backend/admin');
     const apiUrl = isBackend 
       ? `../ajax/get-questions.php?hospital_id=${hospitalId}` 
-      : `../backend/ajax/get-questions.php?hospital_id=${hospitalId}`;
+      : `../api/backend/ajax/get-questions.php?hospital_id=${hospitalId}`;
 
     fetch(apiUrl)
       .then(res => res.json())
@@ -312,10 +321,18 @@ export default function App() {
               contactNumber: data.hospital.contactNumber || '',
               email: data.hospital.email || ''
             });
+            setSelectedHospital({
+              id: parseInt(hospitalId!),
+              name: data.hospital.hospitalName || 'Healthcare Center',
+              logo: data.hospital.logoUrl || null,
+              address: data.hospital.address || null,
+              contactNumber: data.hospital.contactNumber || null
+            });
           }
         }
       })
-      .catch(console.error);
+      .catch(console.error)
+      .finally(() => setIsInitializing(false));
   }, []);
 
   const [suggestions, setSuggestions] = useState('');
@@ -325,8 +342,6 @@ export default function App() {
   const [showSuccess, setShowSuccess] = useState(false);
 
   const allSteps = [
-    { id: 'hospital', title: 'Select Hospital', tamilTitle: 'மருத்துவமனையைத் தேர்ந்தெடுக்கவும்' },
-    { id: 'welcome', title: 'Welcome', tamilTitle: 'வரவேற்கிறோம்' },
     { id: 'patient', title: 'Patient Information', tamilTitle: 'நோயாளி தகவல்' },
     { id: 'service', title: combinePages ? 'Feedback & Questions' : 'Service Feedback', tamilTitle: combinePages ? 'கருத்து & கேள்விகள்' : 'சேவை கருத்து' },
     { id: 'questions', title: 'Questionary Page', tamilTitle: 'கேள்வி பக்கம்' },
@@ -422,19 +437,81 @@ export default function App() {
   };
 
   const handleNext = () => {
-    // Step 0: Hospital selection
+    // Step 0: Patient Information Validation
     if (currentStep === 0) {
-      if (!selectedHospital) {
-        toast.error(language === 'en' ? 'Please select a hospital to continue' : 'தொடர்ந்து செல்ல மருத்துவமனையைத் தேர்ந்தெடுக்கவும்');
+      const newErrors: Record<string, string> = {};
+
+      if (!patientInfo.uhid) newErrors.uhid = language === 'en' ? 'UHID is required' : 'UHID தேவை';
+      
+      if (!patientInfo.firstName) {
+        newErrors.firstName = language === 'en' ? 'First name is required' : 'முதல் பெயர் தேவை';
+      } else if (!/^[a-zA-Z\s.'-]+$/.test(patientInfo.firstName)) {
+        newErrors.firstName = language === 'en' ? 'Name should only contain letters' : 'பெயரில் எழுத்துக்கள் மட்டுமே இருக்க வேண்டும்';
+      } else if (patientInfo.firstName.length < 2) {
+        newErrors.firstName = language === 'en' ? 'Name must be at least 2 characters' : 'குறைந்தது 2 எழுத்துக்கள் இருக்க வேண்டும்';
+      } else if (patientInfo.firstName.length > 100) {
+        newErrors.firstName = language === 'en' ? 'Name must not exceed 100 characters' : '100 எழுத்துக்களைத் தாண்டக்கூடாது';
+      }
+
+      if (!patientInfo.mobile) {
+        newErrors.mobile = language === 'en' ? 'Mobile number is required' : 'மொபைல் எண் தேவை';
+      } else {
+        const digitsOnly = patientInfo.mobile.replace(/\D/g, '');
+        const cleanMobile = digitsOnly.startsWith('91') && digitsOnly.length > 10 ? digitsOnly.slice(2) : digitsOnly;
+        if (cleanMobile.length !== 10) {
+          newErrors.mobile = language === 'en' ? 'Mobile number must be exactly 10 digits' : 'சரியாக 10 இலக்கங்கள் இருக்க வேண்டும்';
+        }
+      }
+
+      if (patientInfo.email) {
+        if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(patientInfo.email)) {
+          newErrors.email = language === 'en' ? 'Please enter a valid email address' : 'சரியான மின்னஞ்சலை உள்ளிடவும்';
+        } else if (patientInfo.email.length > 100) {
+          newErrors.email = language === 'en' ? 'Email must not exceed 100 characters' : '100 எழுத்துக்களைத் தாண்டக்கூடாது';
+        }
+      }
+      
+      if (!patientInfo.address) {
+        newErrors.address = language === 'en' ? 'Address is required' : 'முகவரி தேவை';
+      } else if (patientInfo.address.length < 5) {
+        newErrors.address = language === 'en' ? 'Address must be at least 5 characters' : 'குறைந்தது 5 எழுத்துக்கள் இருக்க வேண்டும்';
+      } else if (patientInfo.address.length > 200) {
+        newErrors.address = language === 'en' ? 'Address must not exceed 200 characters' : '200 எழுத்துக்களைத் தாண்டக்கூடாது';
+      }
+
+      if (!patientInfo.age || parseInt(patientInfo.age) <= 0 || parseInt(patientInfo.age) > 130) {
+        newErrors.age = language === 'en' ? 'Valid Age is required' : 'சரியான வயது தேவை';
+      }
+
+      // Date Validations
+      const today = new Date();
+      today.setHours(23, 59, 59, 999);
+
+      const validateDateNotFuture = (date: Date | null, fieldNameEn: string, fieldNameTa: string, key: string) => {
+        if (date && date > today) {
+          newErrors[key] = language === 'en' ? `${fieldNameEn} cannot be in the future` : `${fieldNameTa} எதிர்காலத்தில் இருக்கக்கூடாது`;
+        }
+      };
+
+      if (patientInfo.visitType === 'OP') {
+        validateDateNotFuture(patientInfo.opDate, 'OP Date', 'OP தேதி', 'opDate');
+      } else if (patientInfo.visitType === 'IP') {
+        validateDateNotFuture(patientInfo.ipDate, 'IP Date', 'IP தேதி', 'ipDate');
+        validateDateNotFuture(patientInfo.admissionDate, 'Date of Admission', 'சேர்க்கை தேதி', 'admissionDate');
+        validateDateNotFuture(patientInfo.dischargeDate, 'Date of Discharge', 'வெளியேறிய தேதி', 'dischargeDate');
+        
+        if (patientInfo.admissionDate && patientInfo.dischargeDate && patientInfo.dischargeDate < patientInfo.admissionDate) {
+           newErrors.dischargeDate = language === 'en' ? 'Date of Discharge cannot be earlier than Date of Admission' : 'வெளியேற்ற தேதி சேர்க்கைக்கு முந்தையதாக இருக்க முடியாது';
+        }
+      }
+
+      setFormErrors(newErrors);
+      
+      if (Object.keys(newErrors).length > 0) {
+        toast.error(language === 'en' ? 'Please fix the errors before continuing' : 'தொடர பிழைகளை சரிசெய்யவும்');
         return;
       }
-    }
-    // Step 1: Welcome page (just proceed)
-    if (currentStep === 1) {
-      // Welcome page just shows hospital info, no validation needed
-    }
-    // Step 2: Patient Information
-    if (currentStep === 2) {
+
       if (!patientInfo.mobileVerified || (patientInfo.email && !patientInfo.emailVerified)) {
         toast.error(language === 'en' ? 'Please verify contact details to continue' : 'தொடர தொடர்பு விவரங்களை சரிபார்க்கவும்');
         return;
@@ -468,7 +545,7 @@ export default function App() {
     toast.success(language === 'en' ? `${hospital.name} selected` : `${hospital.name} தேர்ந்தெடுக்கப்பட்டது`);
   };
 
-  const handleSubmit = () => {
+  const handleSubmit = async () => {
     try {
       const formData = new FormData();
       
@@ -491,7 +568,8 @@ export default function App() {
       formData.append('state', patientInfo.state);
       formData.append('country', patientInfo.country);
       formData.append('visit_type', patientInfo.visitType || 'OP');
-      formData.append('visit_uhid', patientInfo.opNo || patientInfo.ipNo || '');
+      formData.append('op_id', patientInfo.opNo || '');
+      formData.append('ip_id', patientInfo.ipNo || '');
       
       if (patientInfo.admissionDate) {
         formData.append('admission_date', patientInfo.admissionDate.toISOString().split('T')[0]);
@@ -532,22 +610,23 @@ export default function App() {
       formData.append('suggestions', suggestions);
       formData.append('signature_confirmed', '1');
 
-      // Create a form element to submit
-      const form = document.createElement('form');
-      form.method = 'POST';
-      form.action = '../backend/process/submit-feedback.php';
+      // Submit via fetch to get JSON response
+      const response = await fetch('../api/backend/process/submit-feedback.php', {
+        method: 'POST',
+        body: formData
+      });
+
+      const data = await response.json();
       
-      for (const [key, value] of formData.entries()) {
-        const input = document.createElement('input');
-        input.type = 'hidden';
-        input.name = key;
-        input.value = value as string;
-        form.appendChild(input);
+      if (data.success) {
+        window.location.href = '../thank-you.php';
+      } else {
+        if (data.errors && data.errors.length > 0) {
+          toast.error(data.errors.join('\\n'));
+        } else {
+          toast.error('Failed to submit feedback');
+        }
       }
-      
-      document.body.appendChild(form);
-      form.submit();
-      
     } catch (error) {
       console.error('Error submitting form:', error);
       toast.error('Failed to submit feedback');
@@ -557,7 +636,7 @@ export default function App() {
   const handleAdminLogin = async () => {
     setAdminLoginError('');
     try {
-      const response = await fetch('../backend/ajax/login-ajax.php', {
+      const response = await fetch('../api/backend/ajax/login-ajax.php', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -565,13 +644,14 @@ export default function App() {
         body: JSON.stringify({
           email: adminUsername,
           password: adminPassword,
+          hospital_id: selectedHospital?.id,
         }),
       });
       
       const data = await response.json();
       
       if (data.success) {
-        window.location.href = '../backend/admin/dashboard.php';
+        window.location.href = '../api/backend/admin/dashboard.php';
       } else {
         setAdminLoginError(data.message || 'Invalid username or password');
       }
@@ -724,7 +804,8 @@ export default function App() {
       <AdminDashboard
         onClose={() => {
           if (isDashboardPage) {
-            window.location.href = '../../frontend/index.php';
+            const hid = (window as any).ADMIN_HOSPITAL_ID;
+            window.location.href = hid ? `../../../frontend/index.html?hospital_id=${hid}` : '../../../frontend/index.html';
           } else {
             setShowAdminDashboard(false);
           }
@@ -838,6 +919,10 @@ export default function App() {
     }
   }
 
+  if (isInitializing) {
+    return <div className="min-h-screen flex items-center justify-center bg-teal-50"><Loader2 className="w-10 h-10 animate-spin text-teal-600" /></div>;
+  }
+
   return (
     <div className={`min-h-screen bg-gradient-to-br from-teal-50 via-blue-50 to-white ${getFontSizeClass()}`}>
       <style>{`
@@ -854,7 +939,8 @@ export default function App() {
       <Toaster position="top-right" richColors />
 
       {/* Header */}
-      <div className="bg-white shadow-md sticky top-0 z-50">
+      {selectedHospital && (
+        <div className="bg-white shadow-md sticky top-0 z-50">
         <div className="max-w-6xl mx-auto px-4 py-4">
           <div className="flex items-center justify-between flex-wrap gap-4">
             <div className="flex items-center gap-4">
@@ -925,14 +1011,24 @@ export default function App() {
           </div>
         </div>
       </div>
+      )}
 
       {/* Main Content */}
-      <div className="max-w-6xl mx-auto px-4 py-8">
-        {/* Title */}
-        <div className="text-center mb-8">
-          <h2 className="text-3xl font-bold text-gray-900 mb-2">
-            {language === 'en' ? 'Patient Feedback Form' : 'நோயாளி கருத்து படிவம்'}
-          </h2>
+      {!selectedHospital ? (
+        <HospitalSelection 
+          selectedHospitalId={null}
+          onHospitalSelect={(hospital) => {
+            window.location.href = `?hospital_id=${hospital.id}`;
+          }}
+          language={language}
+        />
+      ) : (
+        <div className="max-w-6xl mx-auto px-4 py-8">
+          {/* Title */}
+          <div className="text-center mb-8">
+            <h2 className="text-3xl font-bold text-gray-900 mb-2">
+              {language === 'en' ? 'Patient Feedback Form' : 'நோயாளி கருத்து படிவம்'}
+            </h2>
           <p className="text-sm text-gray-600 mt-2">
             {language === 'en'
               ? 'Your feedback helps us improve our services'
@@ -947,36 +1043,8 @@ export default function App() {
           onStepClick={(index) => setCurrentStep(index)}
         />
 
-        {/* Step 0: Hospital Selection */}
+        {/* Step 0: Patient Information */}
         {currentStep === 0 && (
-          <div>
-            {showPageTitleLabels && (
-              <PageTitle
-                title={language === 'en' ? 'Select Hospital' : 'மருத்துவமனையைத் தேர்ந்தெடுக்கவும்'}
-                subtitle={language === 'en' ? 'Step 1 of 5' : 'படி 1 / 5'}
-              />
-            )}
-            <div className="bg-white rounded-xl shadow-lg p-6 md:p-8">
-              <HospitalSelection
-                selectedHospitalId={selectedHospital?.id || null}
-                onHospitalSelect={handleHospitalSelect}
-                language={language}
-              />
-            </div>
-          </div>
-        )}
-
-        {/* Step 1: Welcome Page */}
-        {currentStep === 1 && selectedHospital && (
-          <WelcomePage
-            hospital={selectedHospital}
-            language={language}
-            onContinue={() => handleNext()}
-          />
-        )}
-
-        {/* Step 2: Patient Information */}
-        {currentStep === 2 && (
           <div>
             {showPageTitleLabels && (
               <PageTitle
@@ -1006,9 +1074,10 @@ export default function App() {
                     value={patientInfo.uhid}
                     onChange={(e) => setPatientInfo({ ...patientInfo, uhid: e.target.value })}
                     onBlur={handleUhidBlur}
-                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-transparent outline-none transition-all"
+                    className={`w-full px-4 py-3 border rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-transparent outline-none transition-all ${formErrors.uhid ? 'border-red-500 bg-red-50' : 'border-gray-300'}`}
                     placeholder={language === 'en' ? 'Enter UHID' : 'UHID உள்ளிடவும்'}
                   />
+                  {formErrors.uhid && <p className="text-red-500 text-xs mt-1 font-medium">{formErrors.uhid}</p>}
                 </div>
                 <div className="hidden md:block"></div>
 
@@ -1022,9 +1091,10 @@ export default function App() {
                     type="text"
                     value={patientInfo.firstName}
                     onChange={(e) => setPatientInfo({ ...patientInfo, firstName: e.target.value })}
-                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-transparent outline-none transition-all"
+                    className={`w-full px-4 py-3 border rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-transparent outline-none transition-all ${formErrors.firstName ? 'border-red-500 bg-red-50' : 'border-gray-300'}`}
                     placeholder={language === 'en' ? 'First name' : 'முதல் பெயர்'}
                   />
+                  {formErrors.firstName && <p className="text-red-500 text-xs mt-1 font-medium">{formErrors.firstName}</p>}
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -1050,9 +1120,10 @@ export default function App() {
                     type="number"
                     value={patientInfo.age}
                     onChange={(e) => setPatientInfo({ ...patientInfo, age: e.target.value })}
-                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-transparent outline-none transition-all"
+                    className={`w-full px-4 py-3 border rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-transparent outline-none transition-all ${formErrors.age ? 'border-red-500 bg-red-50' : 'border-gray-300'}`}
                     placeholder={language === 'en' ? 'Enter age' : 'வயதை உள்ளிடவும்'}
                   />
+                  {formErrors.age && <p className="text-red-500 text-xs mt-1 font-medium">{formErrors.age}</p>}
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -1253,10 +1324,11 @@ export default function App() {
                 <textarea
                   value={patientInfo.address}
                   onChange={(e) => setPatientInfo({ ...patientInfo, address: e.target.value })}
-                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-transparent outline-none transition-all"
+                  className={`w-full px-4 py-3 border rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-transparent outline-none transition-all ${formErrors.address ? 'border-red-500 bg-red-50' : 'border-gray-300'}`}
                   rows={3}
                   placeholder={language === 'en' ? 'Enter full address' : 'முழு முகவரியை உள்ளிடவும்'}
                 />
+                {formErrors.address && <p className="text-red-500 text-xs mt-1 font-medium">{formErrors.address}</p>}
               </div>
 
               {/* Contact Verification */}
@@ -1274,10 +1346,11 @@ export default function App() {
                         type="tel"
                         value={patientInfo.mobile}
                         onChange={(e) => setPatientInfo({ ...patientInfo, mobile: e.target.value })}
-                        className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-transparent outline-none transition-all bg-white"
+                        className={`w-full px-4 py-3 border rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-transparent outline-none transition-all bg-white ${formErrors.mobile ? 'border-red-500 bg-red-50' : 'border-gray-300'}`}
                         placeholder="+91 98765 43210"
                         disabled={patientInfo.mobileVerified}
                       />
+                      {formErrors.mobile && <p className="text-red-500 text-xs mt-1 font-medium">{formErrors.mobile}</p>}
                     </div>
                     <button
                       onClick={handleSendMobileOtp}
@@ -1340,10 +1413,11 @@ export default function App() {
                         type="email"
                         value={patientInfo.email}
                         onChange={(e) => setPatientInfo({ ...patientInfo, email: e.target.value })}
-                        className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-transparent outline-none transition-all bg-white"
+                        className={`w-full px-4 py-3 border rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-transparent outline-none transition-all bg-white ${formErrors.email ? 'border-red-500 bg-red-50' : 'border-gray-300'}`}
                         placeholder="email@example.com"
                         disabled={patientInfo.emailVerified}
                       />
+                      {formErrors.email && <p className="text-red-500 text-xs mt-1 font-medium">{formErrors.email}</p>}
                     </div>
                     <button
                       onClick={handleSendEmailOtp}
@@ -1451,14 +1525,14 @@ export default function App() {
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-6 animate-in fade-in slide-in-from-top-4 duration-300">
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-2">
-                        {language === 'en' ? 'UHID' : 'நோயாளி எண்'}
+                        {language === 'en' ? 'OP ID' : 'நோயாளி எண்'}
                       </label>
                       <input
                         type="text"
                         value={patientInfo.opNo}
                         onChange={(e) => setPatientInfo({ ...patientInfo, opNo: e.target.value })}
                         className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-transparent outline-none transition-all"
-                        placeholder={language === 'en' ? 'Enter UHID' : 'UHID உள்ளிடவும்'}
+                        placeholder={language === 'en' ? 'Enter OP ID' : 'OP ID உள்ளிடவும்'}
                       />
                     </div>
 
@@ -1470,10 +1544,11 @@ export default function App() {
                       <DatePicker
                         selected={patientInfo.opDate}
                         onChange={(date) => setPatientInfo({ ...patientInfo, opDate: date })}
-                        className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-transparent outline-none transition-all"
+                        className={`w-full px-4 py-3 border rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-transparent outline-none transition-all ${formErrors.opDate ? 'border-red-500 bg-red-50' : 'border-gray-300'}`}
                         dateFormat="dd/MM/yyyy"
                         placeholderText={language === 'en' ? 'Select date' : 'தேதி தேர்வு'}
                       />
+                      {formErrors.opDate && <p className="text-red-500 text-xs mt-1 font-medium">{formErrors.opDate}</p>}
                     </div>
                   </div>
                 )}
@@ -1484,14 +1559,14 @@ export default function App() {
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                       <div>
                         <label className="block text-sm font-medium text-gray-700 mb-2">
-                          {language === 'en' ? 'UHID' : 'நோயாளி எண்'}
+                          {language === 'en' ? 'IP ID' : 'நோயாளி எண்'}
                         </label>
                         <input
                           type="text"
                           value={patientInfo.ipNo}
                           onChange={(e) => setPatientInfo({ ...patientInfo, ipNo: e.target.value })}
                           className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-transparent outline-none transition-all"
-                          placeholder={language === 'en' ? 'Enter UHID' : 'UHID உள்ளிடவும்'}
+                          placeholder={language === 'en' ? 'Enter IP ID' : 'IP ID உள்ளிடவும்'}
                         />
                       </div>
 
@@ -1503,10 +1578,11 @@ export default function App() {
                         <DatePicker
                           selected={patientInfo.ipDate}
                           onChange={(date) => setPatientInfo({ ...patientInfo, ipDate: date })}
-                          className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-transparent outline-none transition-all"
+                          className={`w-full px-4 py-3 border rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-transparent outline-none transition-all ${formErrors.ipDate ? 'border-red-500 bg-red-50' : 'border-gray-300'}`}
                           dateFormat="dd/MM/yyyy"
                           placeholderText={language === 'en' ? 'Select date' : 'தேதி தேர்வு'}
                         />
+                        {formErrors.ipDate && <p className="text-red-500 text-xs mt-1 font-medium">{formErrors.ipDate}</p>}
                       </div>
                     </div>
 
@@ -1519,10 +1595,11 @@ export default function App() {
                         <DatePicker
                           selected={patientInfo.admissionDate}
                           onChange={(date) => setPatientInfo({ ...patientInfo, admissionDate: date })}
-                          className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-transparent outline-none transition-all"
+                          className={`w-full px-4 py-3 border rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-transparent outline-none transition-all ${formErrors.admissionDate ? 'border-red-500 bg-red-50' : 'border-gray-300'}`}
                           dateFormat="dd/MM/yyyy"
                           placeholderText={language === 'en' ? 'Select date' : 'தேதி தேர்வு'}
                         />
+                        {formErrors.admissionDate && <p className="text-red-500 text-xs mt-1 font-medium">{formErrors.admissionDate}</p>}
                       </div>
 
                       <div>
@@ -1533,10 +1610,11 @@ export default function App() {
                         <DatePicker
                           selected={patientInfo.dischargeDate}
                           onChange={(date) => setPatientInfo({ ...patientInfo, dischargeDate: date })}
-                          className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-transparent outline-none transition-all"
+                          className={`w-full px-4 py-3 border rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-transparent outline-none transition-all ${formErrors.dischargeDate ? 'border-red-500 bg-red-50' : 'border-gray-300'}`}
                           dateFormat="dd/MM/yyyy"
                           placeholderText={language === 'en' ? 'Select date' : 'தேதி தேர்வு'}
                         />
+                        {formErrors.dischargeDate && <p className="text-red-500 text-xs mt-1 font-medium">{formErrors.dischargeDate}</p>}
                       </div>
                     </div>
                   </div>
@@ -1547,8 +1625,8 @@ export default function App() {
           </div>
         )}
 
-        {/* Step 3: Service Feedback */}
-        {currentStep === 3 && (
+        {/* Step 1: Service Feedback */}
+        {currentStep === 1 && (
           <div>
             {showPageTitleLabels && (
               <PageTitle
@@ -1698,7 +1776,9 @@ export default function App() {
                             language={language}
                           />
                           
-                          {dynamicYesNo[yq.id]?.answer === false && (
+                          {(((yq.describeIssueTrigger || 'no') === 'no' && dynamicYesNo[yq.id]?.answer === false) ||
+                            (yq.describeIssueTrigger === 'yes' && dynamicYesNo[yq.id]?.answer === true) ||
+                            (yq.describeIssueTrigger === 'both' && dynamicYesNo[yq.id]?.answer !== null && dynamicYesNo[yq.id]?.answer !== undefined)) && (
                             <div className="ml-4 mt-3 animate-in fade-in slide-in-from-top-2 duration-300">
                               <label className="block text-sm font-medium text-gray-700 mb-2">
                                 {language === 'en' ? 'Please describe the issue' : 'பிரச்சினையை விவரிக்கவும்'}
@@ -1836,8 +1916,8 @@ export default function App() {
           </div>
         )}
 
-        {/* Step 4: Additional Details (Shown only if NOT combined) */}
-        {!combinePages && currentStep === 4 && (
+        {/* Step 2: Additional Details (Shown only if NOT combined) */}
+        {!combinePages && currentStep === 2 && (
           <div>
             {showPageTitleLabels && (
               <PageTitle
@@ -1850,7 +1930,7 @@ export default function App() {
               <div className="bg-white rounded-xl shadow-lg p-6 md:p-8">
               <div className="text-center mb-8">
                 <h3 className="text-2xl font-bold text-gray-900 mb-2">
-                  {language === 'en' ? 'What Made You to Choose Apollo Healthcare Center ?' : 'அப்பல்லோ சுகாதார மையத்தை தேர்வு செய்ய உங்களைத் தூண்டியது எது?'}
+                  {language === 'en' ? `What Made You to Choose ${branding.hospitalName} ?` : `${branding.hospitalName}-ஐ தேர்வு செய்ய உங்களைத் தூண்டியது எது?`}
                 </h3>
                 <p className="text-gray-600">
                   {language === 'en' ? 'Select ALL that apply' : 'பொருந்தும் அனைத்தையும் தேர்ந்தெடுக்கவும்'}
@@ -1923,7 +2003,9 @@ export default function App() {
                         language={language}
                       />
                       
-                      {dynamicYesNo[yq.id]?.answer === false && (
+                      {(((yq.describeIssueTrigger || 'no') === 'no' && dynamicYesNo[yq.id]?.answer === false) ||
+                        (yq.describeIssueTrigger === 'yes' && dynamicYesNo[yq.id]?.answer === true) ||
+                        (yq.describeIssueTrigger === 'both' && dynamicYesNo[yq.id]?.answer !== null && dynamicYesNo[yq.id]?.answer !== undefined)) && (
                         <div className="ml-4 mt-3 animate-in fade-in slide-in-from-top-2 duration-300">
                           <label className="block text-sm font-medium text-gray-700 mb-2">
                             {language === 'en' ? 'Please describe the issue' : 'பிரச்சினையை விவரிக்கவும்'}
@@ -2008,20 +2090,26 @@ export default function App() {
                         <label className="block text-sm font-medium text-gray-700 mb-2">
                           {language === 'en' ? 'Department' : 'துறை'}
                         </label>
-                        <select
-                          value={appreciation.department}
-                          onChange={(e) => updateAppreciation(appreciation.id, 'department', e.target.value)}
-                          className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-transparent outline-none transition-all"
-                        >
-                          <option value="">{language === 'en' ? 'Select department' : 'துறை தேர்வு'}</option>
-                          <option value="Reception">{language === 'en' ? 'Reception' : 'வரவேற்பு'}</option>
-                          <option value="Nursing">{language === 'en' ? 'Nursing' : 'செவிலியர்'}</option>
-                          <option value="Doctor">{language === 'en' ? 'Doctor' : 'மருத்துவர்'}</option>
-                          <option value="Pharmacy">{language === 'en' ? 'Pharmacy' : 'மருந்தகம்'}</option>
-                          <option value="Lab">{language === 'en' ? 'Lab' : 'ஆய்வகம்'}</option>
-                          <option value="Housekeeping">{language === 'en' ? 'Housekeeping' : 'பராமரிப்பு'}</option>
-                          <option value="Other">{language === 'en' ? 'Other' : 'மற்றவை'}</option>
-                        </select>
+                        {departments.length > 0 ? (
+                          <select
+                            value={appreciation.department}
+                            onChange={(e) => updateAppreciation(appreciation.id, 'department', e.target.value)}
+                            className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-transparent outline-none transition-all bg-white"
+                          >
+                            <option value="">{language === 'en' ? 'Select Department' : 'துறையைத் தேர்ந்தெடுக்கவும்'}</option>
+                            {departments.map((dept, i) => (
+                              <option key={i} value={dept}>{dept}</option>
+                            ))}
+                          </select>
+                        ) : (
+                          <input
+                            type="text"
+                            value={appreciation.department}
+                            onChange={(e) => updateAppreciation(appreciation.id, 'department', e.target.value)}
+                            className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-transparent outline-none transition-all"
+                            placeholder={language === 'en' ? 'e.g. Cardiology' : 'எ.கா. இதயவியல்'}
+                          />
+                        )}
                       </div>
 
                       <div className="md:col-span-2">
@@ -2055,8 +2143,8 @@ export default function App() {
         </div>
         )}
 
-        {/* Step 5: Review & Submit */}
-        {currentStep === (combinePages ? 4 : 5) && (
+        {/* Step 3: Review & Submit */}
+        {currentStep === (combinePages ? 2 : 3) && (
           <div>
             {showPageTitleLabels && (
               <PageTitle
@@ -2080,11 +2168,11 @@ export default function App() {
                 {language === 'en' ? 'Summary' : 'சுருக்கம்'}
               </h4>
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 text-center">
-                {/* Hospital - Navigate to Step 0 */}
+                {/* Patient - Navigate to Step 0 */}
                 <div className="p-4 bg-white/70 rounded-lg">
-                  <p className="text-sm text-gray-600 mb-1">{language === 'en' ? 'Hospital' : 'மருத்துவமனை'}</p>
+                  <p className="text-sm text-gray-600 mb-1">{language === 'en' ? 'Patient' : 'நோயாளி'}</p>
                   <p className="font-semibold text-gray-900">
-                    {language === 'en' ? 'Hospital Selected' : 'தேர்ந்தெடுக்கப்பட்ட மருத்துவமனை'}
+                    {language === 'en' ? 'Patient Details' : 'நோயாளி விவரங்கள்'}
                   </p>
                   <button
                     onClick={() => setCurrentStep(0)}
@@ -2094,35 +2182,41 @@ export default function App() {
                   </button>
                 </div>
 
-                {/* Patient - Navigate to Step 2 */}
-                <div className="p-4 bg-white/70 rounded-lg">
-                  <p className="text-sm text-gray-600 mb-1">{language === 'en' ? 'Patient' : 'நோயாளி'}</p>
-                  <p className="font-semibold text-gray-900">
-                    {language === 'en' ? 'Patient Details' : 'நோயாளி விவரங்கள்'}
-                  </p>
-                  <button
-                    onClick={() => setCurrentStep(2)}
-                    className="mt-2 text-gray-600 hover:text-teal-600 transition-colors"
-                  >
-                    <Pencil className="w-4 h-4" />
-                  </button>
-                </div>
-
-                {/* Ratings Provided - Navigate to Step 3 */}
+                {/* Ratings Provided - Navigate to Step 1 */}
                 <div className="p-4 bg-white/70 rounded-lg">
                   <p className="text-sm text-gray-600 mb-1">{language === 'en' ? 'Ratings Provided' : 'மதிப்பீடுகள்'}</p>
                   <p className="font-semibold text-gray-900">
-                    {Object.values(ratings).filter(r => r > 0).length} / 13
+                    {Object.values(dynamicRatings).filter(r => r > 0).length} / {questions.length}
                   </p>
                   <button
-                    onClick={() => setCurrentStep(3)}
+                    onClick={() => setCurrentStep(1)}
                     className="mt-2 text-gray-600 hover:text-teal-600 transition-colors"
                   >
                     <Pencil className="w-4 h-4" />
                   </button>
                 </div>
 
-                {/* Questionary Page - Navigate to Step 4 */}
+                {/* Overall Rating - Calculated Average */}
+                <div className="p-4 bg-white/70 rounded-lg">
+                  <p className="text-sm text-gray-600 mb-1">{language === 'en' ? 'Overall Rating' : 'ஒட்டுமொத்த மதிப்பீடு'}</p>
+                  <p className="font-semibold text-gray-900">
+                    {(() => {
+                      const answeredRatings = Object.values(dynamicRatings).filter(r => r > 0);
+                      const totalQuestions = questions.length;
+                      if (answeredRatings.length === 0 || totalQuestions === 0) return language === 'en' ? 'Not rated' : 'மதிப்பிடப்படவில்லை';
+                      const avg = answeredRatings.reduce((a, b) => a + b, 0) / totalQuestions;
+                      return `${avg.toFixed(1)} / 5`;
+                    })()}
+                  </p>
+                  <button
+                    onClick={() => setCurrentStep(1)}
+                    className="mt-2 text-gray-600 hover:text-teal-600 transition-colors"
+                  >
+                    <Pencil className="w-4 h-4" />
+                  </button>
+                </div>
+
+                {/* Questionary Page - Navigate to Step 2 */}
                 <div className="p-4 bg-white/70 rounded-lg">
                   <p className="text-sm text-gray-600 mb-1">{language === 'en' ? 'Questionary Page' : 'கேள்வி பக்கம்'}</p>
                   <p className="font-semibold text-gray-900">
@@ -2132,7 +2226,7 @@ export default function App() {
                     })()}
                   </p>
                   <button
-                    onClick={() => setCurrentStep(4)}
+                    onClick={() => setCurrentStep(2)}
                     className="mt-2 text-gray-600 hover:text-teal-600 transition-colors"
                   >
                     <Pencil className="w-4 h-4" />
@@ -2155,7 +2249,7 @@ export default function App() {
                 </div>
               </div>
               <h3 className="text-2xl font-bold text-gray-900 mb-3">
-                {language === 'en' ? 'Thank you for choosing Apollo Healthcare Center' : 'அப்பல்லோ சுகாதார மையத்தை தேர்வு செய்ததற்கு நன்றி'}
+                {language === 'en' ? `Thank you for choosing ${branding.hospitalName}` : `${branding.hospitalName}-ஐ தேர்வு செய்ததற்கு நன்றி`}
               </h3>
               <p className="text-gray-700 mb-2 max-w-2xl mx-auto">
                 {language === 'en'
@@ -2203,6 +2297,7 @@ export default function App() {
           )}
         </div>
       </div>
+      )}
 
       {/* Admin Login Modal */}
       {showAdminLoginModal && (

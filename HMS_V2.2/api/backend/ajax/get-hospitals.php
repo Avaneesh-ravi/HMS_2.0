@@ -12,19 +12,24 @@ header('Content-Type: application/json');
 try {
     $pdo = getDBConnection();
     
-    $query = "SELECT id, hospital_name, logo_path, address, contact_number FROM hospitals WHERE is_active = 1 ORDER BY hospital_name ASC";
+    $query = "SELECT hospital_id as id, name as hospital_name, address1, mobile, logo FROM hospital WHERE status = 'Active' ORDER BY name ASC";
     $stmt = $pdo->prepare($query);
     $stmt->execute();
     $hospitals = $stmt->fetchAll(PDO::FETCH_ASSOC);
     
     // Transform the response
     $result = array_map(function($hospital) {
+        $logo = $hospital['logo'];
+        if (!empty($logo) && strpos($logo, 'http') !== 0 && strpos($logo, 'data:image/') !== 0) {
+            $logo = '../api/backend/uploads/' . $logo;
+        }
+
         return [
             'id' => (int)$hospital['id'],
             'name' => $hospital['hospital_name'],
-            'logo' => $hospital['logo_path'],
-            'address' => $hospital['address'],
-            'contactNumber' => $hospital['contact_number']
+            'logo' => $logo,
+            'address' => $hospital['address1'],
+            'contactNumber' => $hospital['mobile']
         ];
     }, $hospitals);
     
