@@ -112,7 +112,13 @@ if (strpos($requestUri, 'api/') === 0) {
 }
 
 // Handle static files from frontend
-$staticFile = $rootDir . '/frontend/' . $requestUri;
+// If $requestUri already starts with 'frontend/', don't prepend it again
+if (strpos($requestUri, 'frontend/') === 0) {
+    $staticFile = $rootDir . '/' . $requestUri;
+} else {
+    $staticFile = $rootDir . '/frontend/' . $requestUri;
+}
+
 if (file_exists($staticFile) && is_file($staticFile)) {
     serveStaticFile($staticFile);
 }
