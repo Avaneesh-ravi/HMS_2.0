@@ -15,6 +15,25 @@ function redirect(string $path): void {
     exit;
 }
 
+/** 
+ * Parse Vite's newly compiled index.html to guarantee we inject the correct hashes.
+ * This explicitly fixes a Vercel bug where git preserves identical filemtimes.
+ */
+function getViteAssets(string $htmlPath): array {
+    $js = '';
+    $css = '';
+    if (file_exists($htmlPath)) {
+        $html = file_get_contents($htmlPath);
+        if (preg_match('/<script\s+type="module"\s+crossorigin\s+src="[^"]*\/assets\/(index-[^"]+\.js)"><\/script>/i', $html, $matches)) {
+            $js = $matches[1];
+        }
+        if (preg_match('/<link\s+rel="stylesheet"\s+crossorigin\s+href="[^"]*\/assets\/(index-[^"]+\.css)">/i', $html, $matches)) {
+            $css = $matches[1];
+        }
+    }
+    return ['js' => $js, 'css' => $css];
+}
+
 /** Start session once and repair it from Vercel stateless cookies if missing */
 function ensureSession(): void {
     if (session_status() === PHP_SESSION_NONE) {

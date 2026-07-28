@@ -15,16 +15,9 @@ if ($hospital_id > 0) {
     } catch (Exception $e) {}
 }
 
-$jsFiles = glob(__DIR__ . '/../../frontend/assets/index-*.js');
-$cssFiles = glob(__DIR__ . '/../../frontend/assets/index-*.css');
-if ($jsFiles) {
-    usort($jsFiles, function($a, $b) { return filemtime($b) - filemtime($a); });
-}
-if ($cssFiles) {
-    usort($cssFiles, function($a, $b) { return filemtime($b) - filemtime($a); });
-}
-$latestJs = !empty($jsFiles) ? basename($jsFiles[0]) : '';
-$latestCss = !empty($cssFiles) ? basename($cssFiles[0]) : '';
+$assets = getViteAssets(__DIR__ . '/../../frontend/index.html');
+$latestJs = $assets['js'];
+$latestCss = $assets['css'];
 ?>
 <!DOCTYPE html>
 <html lang="en">
